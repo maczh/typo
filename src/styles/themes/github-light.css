@@ -1,0 +1,32 @@
+/* GitHub Light theme — activated by setting `data-theme="github-light"` on <html>.
+   Most base tokens live in variables.css; this file scopes a few editor-specific
+   tweaks so the prose matches GitHub's reading view. */
+[data-theme='github-light'] {
+  --editor-bg: #ffffff;
+  --editor-fg: #24292f;
+  --editor-selection: rgba(84, 174, 255, 0.25);
+  --editor-code-bg: #f6f8fa;
+  --editor-quote-border: #d0d7de;
+  --editor-heading-border: #d8dee4;
+}
+
+[data-theme='github-light'] .milkdown {
+  color: var(--editor-fg);
+  background: var(--editor-bg);
+}
+
+[data-theme='github-light'] .milkdown pre,
+[data-theme='github-light'] .milkdown code {
+  background: var(--editor-code-bg);
+}
+
+[data-theme='github-light'] .milkdown blockquote {
+  border-left: 4px solid var(--editor-quote-border);
+  color: var(--fg-muted);
+}
+
+[data-theme='github-light'] .milkdown h1,
+[data-theme='github-light'] .milkdown h2 {
+  border-bottom: 1px solid var(--editor-heading-border);
+  padding-bottom: 0.3em;
+}

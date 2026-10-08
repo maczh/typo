@@ -1,0 +1,30 @@
+# Logs
+*.log
+npm-debug.log*
+
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build output
+dist
+dist-ssr
+*.local
+
+# Tauri (Rust)
+src-tauri/target
+src-tauri/gen
+src-tauri/target/*
+!src-tauri/target/.gitkeep
+
+# Editor / OS
+.DS_Store
+.idea
+.vscode
+*.swp
+
+# Env
+.env
+.env.*
+!.env.example

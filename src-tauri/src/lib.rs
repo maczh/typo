@@ -24,6 +24,9 @@ pub fn run() {
             commands::file::list_dir,
             commands::file::pick_open,
             commands::file::pick_save,
+            commands::file::pick_dir,
+            commands::file::open_folder,
+            commands::file::delete_file,
             // asset
             commands::asset::write_asset,
             commands::asset::get_assets_dir,

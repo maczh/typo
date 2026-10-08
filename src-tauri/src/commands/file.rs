@@ -118,3 +118,32 @@ pub async fn pick_save(default_name: String, app: AppHandle) -> Result<Option<St
         .await;
     Ok(picked.map(|fp| fp.to_string()))
 }
+
+/// Show a native folder picker; returns the chosen directory or `None`.
+#[tauri::command]
+pub async fn pick_dir(app: AppHandle) -> Result<Option<String>, String> {
+    let picked = app.dialog().file().pick_folder().await;
+    Ok(picked.map(|p| p.to_string()))
+}
+
+/// Pick a folder and list its immediate children in one call.
+#[tauri::command]
+pub async fn open_folder(app: AppHandle) -> Result<Vec<FileItem>, String> {
+    let dir = match app.dialog().file().pick_folder().await {
+        Some(d) => d.to_string(),
+        None => return Ok(Vec::new()),
+    };
+    list_dir(dir).await
+}
+
+/// Delete a file or (recursively) a directory.
+#[tauri::command]
+pub async fn delete_file(path: String) -> Result<(), String> {
+    let p = Path::new(&path);
+    if p.is_dir() {
+        fs::remove_dir_all(p)
+    } else {
+        fs::remove_file(p)
+    }
+    .map_err(|e| e.to_string())
+}

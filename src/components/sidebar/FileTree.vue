@@ -2,27 +2,14 @@
 import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFilesStore } from '@/stores/files'
-import { useTauri } from '@/composables/useTauri'
+import * as A from '@/commands/actions'
 
 const { t } = useI18n()
 const files = useFilesStore()
-const tauri = useTauri()
 
 onMounted(() => {
   if (files.currentDir) void files.refreshTree(files.currentDir)
 })
-
-async function openFileDialog(): Promise<void> {
-  const p = await tauri.pickOpen()
-  if (p) await files.openFile(p)
-}
-
-async function openFolder(): Promise<void> {
-  const p = await tauri.pickOpen()
-  if (!p) return
-  const dir = p.replace(/\/[^/]*$/, '') || '.'
-  await files.refreshTree(dir)
-}
 
 function openItem(path: string): void {
   void files.openFile(path)
@@ -36,8 +23,14 @@ function openDir(path: string): void {
 <template>
   <div class="file-tree">
     <div class="tree-actions">
-      <button class="btn" @click="openFileDialog">{{ t('menu.open') }}</button>
-      <button class="icon-btn" :title="t('sidebar.openFolder')" @click="openFolder">📁</button>
+      <button class="btn" @click="A.openFileDialog">{{ t('menu.open') }}</button>
+      <button class="icon-btn" :title="t('sidebar.openFolder')" @click="files.openFolder">
+        📁
+      </button>
+    </div>
+
+    <div v-if="files.currentDir" class="breadcrumb" :title="files.currentDir">
+      📂 {{ files.currentDir }}
     </div>
 
     <div class="section-title">{{ t('sidebar.recent') }}</div>
@@ -72,10 +65,45 @@ function openDir(path: string): void {
 </template>
 
 <style scoped>
+.file-tree {
+  font-size: 13px;
+}
 .tree-actions {
   display: flex;
   gap: 6px;
   margin-bottom: 8px;
+}
+.btn {
+  flex: 1 1 auto;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.btn:hover {
+  background: var(--accent-soft);
+}
+.icon-btn {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.icon-btn:hover {
+  background: var(--accent-soft);
+}
+.breadcrumb {
+  font-size: 11px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 4px 6px;
 }
 .section-title {
   font-size: 11px;
@@ -93,7 +121,6 @@ function openDir(path: string): void {
   padding: 4px 6px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 13px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

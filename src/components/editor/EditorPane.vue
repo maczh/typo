@@ -3,14 +3,19 @@ import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { useMilkdown } from '@/composables/useMilkdown'
 import { useEditorStore } from '@/stores/editor'
 import { useSettingsStore } from '@/stores/settings'
+import { useUI } from '@/composables/useUI'
+import { useSourceMode } from '@/composables/useSourceMode'
 import { buildOutlineFromMarkdown } from '@/utils/outline'
 import ImageHandler from './ImageHandler.vue'
 import TableToolbar from './TableToolbar.vue'
+import SourceView from './SourceView.vue'
 
 const container = ref<HTMLElement | null>(null)
 const milkdown = useMilkdown()
 const editorStore = useEditorStore()
 const settingsStore = useSettingsStore()
+const ui = useUI()
+const source = useSourceMode()
 
 async function handleChange(md: string): Promise<void> {
   editorStore.updateContent(md)
@@ -27,6 +32,18 @@ onBeforeUnmount(() => {
   milkdown.destroy()
 })
 
+// Entering / leaving source mode: snapshot the Markdown, or push edits back.
+watch(
+  () => ui.sourceMode.value,
+  async (active) => {
+    if (active) {
+      await source.enter()
+    } else {
+      await source.commit()
+    }
+  },
+)
+
 // Reload the editor whenever a *new* document is loaded (loadSignal increments).
 watch(
   () => editorStore.loadSignal,
@@ -39,8 +56,9 @@ watch(
 
 <template>
   <div class="editor-pane" :class="`mode-${settingsStore.settings.mode}`">
-    <TableToolbar />
-    <div ref="container" class="milkdown-root"></div>
+    <TableToolbar v-if="!ui.sourceMode.value" />
+    <div v-show="!ui.sourceMode.value" ref="container" class="milkdown_root"></div>
+    <SourceView v-if="ui.sourceMode.value" v-model="source.sourceText.value" />
     <ImageHandler />
   </div>
 </template>
@@ -54,18 +72,17 @@ watch(
   height: 100%;
   background: var(--bg);
 }
-.milkdown-root {
+.milkdown_root {
   flex: 1 1 auto;
   overflow: auto;
   padding: 24px;
   display: flex;
   justify-content: center;
 }
-.milkdown-root :deep(.milkdown) {
+.milkdown_root :deep(.milkdown) {
   width: 100%;
   max-width: var(--content-max-width);
 }
-/* Focus / typewriter hide the chrome for distraction-free writing. */
 .mode-focus .table-toolbar,
 .mode-typewriter .table-toolbar {
   opacity: 0.25;

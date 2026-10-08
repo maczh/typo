@@ -1,25 +1,28 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useUI } from '@/composables/useUI'
 import FileTree from './FileTree.vue'
 import OutlinePanel from './OutlinePanel.vue'
 
 const { t } = useI18n()
-const tab = ref<'files' | 'outline'>('files')
+const ui = useUI()
 </script>
 
 <template>
   <aside class="sidebar">
     <div class="tabs">
-      <button class="tab" :class="{ active: tab === 'files' }" @click="tab = 'files'">
+      <button class="tab" :class="{ active: ui.sidebarView.value === 'files' }" @click="ui.sidebarView.value = 'files'">
         {{ t('sidebar.files') }}
       </button>
-      <button class="tab" :class="{ active: tab === 'outline' }" @click="tab = 'outline'">
+      <button class="tab" :class="{ active: ui.sidebarView.value === 'outline' }" @click="ui.sidebarView.value = 'outline'">
         {{ t('sidebar.outline') }}
+      </button>
+      <button class="tab" :class="{ active: ui.sidebarView.value === 'articles' }" @click="ui.sidebarView.value = 'articles'">
+        {{ t('sidebar.articles') }}
       </button>
     </div>
     <div class="sidebar-body">
-      <FileTree v-if="tab === 'files'" />
+      <FileTree v-if="ui.sidebarView.value !== 'outline'" />
       <OutlinePanel v-else />
     </div>
   </aside>

@@ -73,6 +73,17 @@ export const useFilesStore = defineStore('files', () => {
     await loadRecent()
   }
 
+  /** Pick a directory with a native dialog and load its tree into the sidebar. */
+  async function openFolder(): Promise<void> {
+    const tauri = useTauri()
+    try {
+      const dir = await tauri.pickDir()
+      if (dir) await refreshTree(dir)
+    } catch {
+      /* non-fatal (e.g. browser preview) */
+    }
+  }
+
   return {
     tree,
     recent,
@@ -83,5 +94,6 @@ export const useFilesStore = defineStore('files', () => {
     loadRecent,
     addRecent,
     clearRecent,
+    openFolder,
   }
 })

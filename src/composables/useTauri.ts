@@ -57,6 +57,8 @@ export function useTauri() {
     pickOpen: () => call<string | null>('pick_open'),
     pickSave: (defaultName: string) =>
       call<string | null>('pick_save', { defaultName }),
+    pickDir: () => call<string | null>('pick_dir'),
+    deleteFile: (path: string) => call<void>('delete_file', { path }),
     writeAsset: (docDir: string, filename: string, data: Uint8Array | number[]) =>
       call<string>('write_asset', { docDir, filename, data }),
     getAssetsDir: (docPath: string) =>

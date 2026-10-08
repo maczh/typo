@@ -1,32 +1,21 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useMilkdown } from '@/composables/useMilkdown'
-import { useEditorStore } from '@/stores/editor'
-import { useFilesStore } from '@/stores/files'
-import { useSettingsStore } from '@/stores/settings'
-import { useTauri } from '@/composables/useTauri'
 import { useUI } from '@/composables/useUI'
+import * as A from '@/commands/actions'
 import { exportDocument } from '@/utils/exporter'
-import { insertMath } from '@/milkdown/plugins/latex'
-import { insertDiagram } from '@/milkdown/plugins/mermaid'
-import { insertImage } from '@/milkdown/plugins/image'
-import { insertTable } from '@/milkdown/plugins/table'
-import { undo, redo } from '@milkdown/prose/history'
-import { editorViewCtx } from '@milkdown/core'
-import { dirname } from '@/utils/file'
-import type { ExportFormat } from '@/types'
+import { useEditorStore } from '@/stores/editor'
+import { useSettingsStore } from '@/stores/settings'
+import { useMilkdown } from '@/composables/useMilkdown'
+import type { ExportFormat, Lang } from '@/types'
 
 const { t } = useI18n()
-const milkdown = useMilkdown()
-const editor = useEditorStore()
-const files = useFilesStore()
-const settings = useSettingsStore()
-const tauri = useTauri()
 const ui = useUI()
+const editor = useEditorStore()
+const settings = useSettingsStore()
+const milkdown = useMilkdown()
 
 const openMenu = ref<string | null>(null)
-const fileInput = ref<HTMLInputElement | null>(null)
 
 interface MenuItem {
   id: string
@@ -34,15 +23,21 @@ interface MenuItem {
   shortcut?: string
   sub?: MenuItem[]
 }
+
 const menus: { id: string; titleKey: string; items: MenuItem[] }[] = [
   {
     id: 'file',
     titleKey: 'menu.file',
     items: [
       { id: 'new', titleKey: 'menu.new' },
+      { id: 'newWindow', titleKey: 'menu.newWindow' },
       { id: 'open', titleKey: 'menu.open' },
+      { id: 'openFolder', titleKey: 'menu.openFolder' },
+      { id: 'quickOpen', titleKey: 'menu.quickOpen', shortcut: 'Ctrl/⌘+P' },
       { id: 'save', titleKey: 'menu.save', shortcut: 'Ctrl/⌘+S' },
-      { id: 'saveAs', titleKey: 'menu.saveAs' },
+      { id: 'saveAs', titleKey: 'menu.saveAs', shortcut: 'Ctrl/⌘+⇧+S' },
+      { id: 'close', titleKey: 'menu.close' },
+      { id: 'recent', titleKey: 'menu.recent' },
       {
         id: 'export',
         titleKey: 'menu.export',
@@ -53,35 +48,96 @@ const menus: { id: string; titleKey: string; items: MenuItem[] }[] = [
           { id: 'export-pdf', titleKey: 'export.pdf' },
         ],
       },
-      { id: 'recent', titleKey: 'menu.recent' },
-      { id: 'preferences', titleKey: 'menu.preferences' },
+      { id: 'preferences', titleKey: 'menu.preferences', shortcut: 'Ctrl/⌘+,' },
     ],
   },
-  { id: 'edit', titleKey: 'menu.edit', items: [
-    { id: 'undo', titleKey: 'menu.undo' },
-    { id: 'redo', titleKey: 'menu.redo' },
-  ] },
-  { id: 'view', titleKey: 'menu.view', items: [
-    { id: 'toggleSidebar', titleKey: 'menu.toggleSidebar' },
-    { id: 'toggleOutline', titleKey: 'menu.toggleOutline' },
-    { id: 'focusMode', titleKey: 'menu.focusMode' },
-    { id: 'typewriterMode', titleKey: 'menu.typewriterMode' },
-    { id: 'normalMode', titleKey: 'menu.normalMode' },
-  ] },
-  { id: 'format', titleKey: 'menu.format', items: [
-    { id: 'insertTable', titleKey: 'menu.insertTable' },
-    { id: 'insertImage', titleKey: 'menu.insertImage' },
-    { id: 'insertMath', titleKey: 'menu.insertMath' },
-    { id: 'insertDiagram', titleKey: 'menu.insertDiagram' },
-  ] },
-  { id: 'theme', titleKey: 'menu.theme', items: [
-    { id: 'theme-github-light', titleKey: 'theme.github-light' },
-    { id: 'theme-nord-dark', titleKey: 'theme.nord-dark' },
-  ] },
-  { id: 'help', titleKey: 'menu.help', items: [
-    { id: 'commandPalette', titleKey: 'menu.commandPalette', shortcut: 'Ctrl/⌘+⇧+P' },
-    { id: 'about', titleKey: 'menu.about' },
-  ] },
+  {
+    id: 'edit',
+    titleKey: 'menu.edit',
+    items: [
+      { id: 'undo', titleKey: 'menu.undo', shortcut: 'Ctrl/⌘+Z' },
+      { id: 'redo', titleKey: 'menu.redo', shortcut: 'Ctrl/⌘+Y' },
+      { id: 'cut', titleKey: 'menu.cut', shortcut: 'Ctrl/⌘+X' },
+      { id: 'copy', titleKey: 'menu.copy', shortcut: 'Ctrl/⌘+C' },
+      { id: 'paste', titleKey: 'menu.paste', shortcut: 'Ctrl/⌘+V' },
+      { id: 'copyAsMarkdown', titleKey: 'menu.copyAsMarkdown', shortcut: 'Ctrl/⌘+⇧+C' },
+      { id: 'pastePlain', titleKey: 'menu.pastePlain', shortcut: 'Ctrl/⌘+⇧+V' },
+      { id: 'selectAll', titleKey: 'menu.selectAll', shortcut: 'Ctrl/⌘+A' },
+      { id: 'find', titleKey: 'menu.find', shortcut: 'Ctrl/⌘+F' },
+      { id: 'replace', titleKey: 'menu.replace', shortcut: 'Ctrl/⌘+H' },
+    ],
+  },
+  {
+    id: 'paragraph',
+    titleKey: 'menu.paragraph',
+    items: [
+      { id: 'h1', titleKey: 'menu.h1', shortcut: 'Ctrl/⌘+1' },
+      { id: 'h2', titleKey: 'menu.h2', shortcut: 'Ctrl/⌘+2' },
+      { id: 'h3', titleKey: 'menu.h3', shortcut: 'Ctrl/⌘+3' },
+      { id: 'h4', titleKey: 'menu.h4', shortcut: 'Ctrl/⌘+4' },
+      { id: 'h5', titleKey: 'menu.h5', shortcut: 'Ctrl/⌘+5' },
+      { id: 'h6', titleKey: 'menu.h6', shortcut: 'Ctrl/⌘+6' },
+      { id: 'paragraph', titleKey: 'menu.paragraph', shortcut: 'Ctrl/⌘+0' },
+      { id: 'incHeading', titleKey: 'menu.incHeading', shortcut: 'Ctrl/⌘+=' },
+      { id: 'decHeading', titleKey: 'menu.decHeading', shortcut: 'Ctrl/⌘+-' },
+      { id: 'table', titleKey: 'menu.insertTable', shortcut: 'Ctrl/⌘+T' },
+      { id: 'codeBlock', titleKey: 'menu.codeBlock', shortcut: 'Ctrl/⌘+⇧+K' },
+      { id: 'mathBlock', titleKey: 'menu.insertMath', shortcut: 'Ctrl/⌘+⇧+M' },
+      { id: 'quote', titleKey: 'menu.quote', shortcut: 'Ctrl/⌘+⇧+Q' },
+      { id: 'orderedList', titleKey: 'menu.orderedList', shortcut: 'Ctrl/⌘+⇧+[' },
+      { id: 'unorderedList', titleKey: 'menu.unorderedList', shortcut: 'Ctrl/⌘+⇧+]' },
+      { id: 'taskList', titleKey: 'menu.taskList' },
+      { id: 'indent', titleKey: 'menu.indent' },
+      { id: 'outdent', titleKey: 'menu.outdent' },
+    ],
+  },
+  {
+    id: 'format',
+    titleKey: 'menu.format',
+    items: [
+      { id: 'bold', titleKey: 'menu.bold', shortcut: 'Ctrl/⌘+B' },
+      { id: 'italic', titleKey: 'menu.italic', shortcut: 'Ctrl/⌘+I' },
+      { id: 'underline', titleKey: 'menu.underline', shortcut: 'Ctrl/⌘+U' },
+      { id: 'strike', titleKey: 'menu.strike', shortcut: 'Alt+⇧+5' },
+      { id: 'inlineCode', titleKey: 'menu.code', shortcut: 'Ctrl/⌘+⇧+`' },
+      { id: 'link', titleKey: 'menu.link', shortcut: 'Ctrl/⌘+K' },
+      { id: 'image', titleKey: 'menu.insertImage', shortcut: 'Ctrl/⌘+⇧+I' },
+      { id: 'clearFormat', titleKey: 'menu.clearFormat', shortcut: 'Ctrl/⌘+\\' },
+    ],
+  },
+  {
+    id: 'view',
+    titleKey: 'menu.view',
+    items: [
+      { id: 'sourceMode', titleKey: 'menu.sourceMode', shortcut: 'Ctrl/⌘+/' },
+      { id: 'toggleSidebar', titleKey: 'menu.toggleSidebar', shortcut: 'Ctrl/⌘+⇧+L' },
+      { id: 'outline', titleKey: 'menu.toggleOutline', shortcut: 'Ctrl/⌘+⇧+1' },
+      { id: 'articles', titleKey: 'menu.articles', shortcut: 'Ctrl/⌘+⇧+2' },
+      { id: 'fileTree', titleKey: 'menu.fileTree', shortcut: 'Ctrl/⌘+⇧+3' },
+      { id: 'focusMode', titleKey: 'menu.focusMode', shortcut: 'F8' },
+      { id: 'typewriterMode', titleKey: 'menu.typewriterMode', shortcut: 'F9' },
+      { id: 'fullscreen', titleKey: 'menu.fullscreen', shortcut: 'F11' },
+      { id: 'zoomActual', titleKey: 'menu.zoomActual', shortcut: 'Ctrl/⌘+⇧+0' },
+      { id: 'zoomIn', titleKey: 'menu.zoomIn', shortcut: 'Ctrl/⌘+⇧+=' },
+      { id: 'zoomOut', titleKey: 'menu.zoomOut', shortcut: 'Ctrl/⌘+⇧+-' },
+    ],
+  },
+  {
+    id: 'theme',
+    titleKey: 'menu.theme',
+    items: [
+      { id: 'theme-github-light', titleKey: 'theme.github-light' },
+      { id: 'theme-nord-dark', titleKey: 'theme.nord-dark' },
+    ],
+  },
+  {
+    id: 'help',
+    titleKey: 'menu.help',
+    items: [
+      { id: 'commandPalette', titleKey: 'menu.commandPalette', shortcut: 'Ctrl/⌘+⇧+P' },
+      { id: 'about', titleKey: 'menu.about' },
+    ],
+  },
 ]
 
 function toggleMenu(id: string): void {
@@ -91,116 +147,20 @@ function closeMenu(): void {
   openMenu.value = null
 }
 
-async function getMarkdownContent(): Promise<string> {
-  return await milkdown.getMarkdown()
-}
-
-async function newFile(): Promise<void> {
-  await files.newFile()
-}
-async function openFile(): Promise<void> {
-  const path = await tauri.pickOpen()
-  if (path) await files.openFile(path)
-}
-async function save(): Promise<void> {
-  const content = await getMarkdownContent()
-  if (!editor.doc.path) {
-    await saveAs()
-    return
-  }
-  await tauri.saveFile(editor.doc.path, content)
-  editor.markSaved()
-}
-async function saveAs(): Promise<void> {
-  const content = await getMarkdownContent()
-  const name = editor.doc.name || 'untitled.md'
-  const path = await tauri.pickSave(name)
-  if (path) {
-    const res = await tauri.saveFileAs(path, content)
-    editor.doc.path = res.path
-    editor.doc.name = res.name
-    editor.markSaved()
-    await files.addRecent(res.path)
-  }
-}
 async function doExport(format: ExportFormat): Promise<void> {
-  const md = await getMarkdownContent()
+  const md = await milkdown.getMarkdown()
   const base = (editor.doc.name || 'untitled').replace(/\.md$/i, '')
   await exportDocument(md, format, base || 'untitled')
 }
-async function recent(): Promise<void> {
-  await files.loadRecent()
-  ui.toggleSidebar()
-}
-function openSettings(): void {
-  ui.openSettings()
-}
 
-function history(cmd: (state: unknown, dispatch?: (tr: unknown) => void) => boolean): void {
-  const e = milkdown.getEditor()
-  if (!e) return
-  e.action((ctx) => {
-    const v = ctx.get(editorViewCtx) as unknown as { state: unknown; dispatch: (tr: unknown) => void }
-    cmd(v.state, v.dispatch)
-  })
-}
-function undoEdit(): void {
-  history(undo as never)
-}
-function redoEdit(): void {
-  history(redo as never)
-}
-
-function setMode(mode: 'normal' | 'focus' | 'typewriter'): void {
-  settings.update({ mode })
-  void settings.persist()
-}
 function applyTheme(id: string): void {
   settings.applyTheme(id)
   void settings.persist()
 }
-function toggleSidebar(): void {
-  ui.toggleSidebar()
-}
-function toggleOutline(): void {
-  ui.toggleOutline()
-}
 
-function insertTableCmd(): void {
-  const e = milkdown.getEditor()
-  if (e) insertTable(e)
-}
-function insertMathCmd(): void {
-  const e = milkdown.getEditor()
-  if (e) insertMath(e, 'E = mc^2', true)
-}
-function insertDiagramCmd(): void {
-  const e = milkdown.getEditor()
-  if (e) insertDiagram(e, 'graph TD;\n  A-->B;')
-}
-function insertImageCmd(): void {
-  fileInput.value?.click()
-}
-async function onFilePicked(e: Event): Promise<void> {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = ''
-  if (!file) return
-  const ed = milkdown.getEditor()
-  if (!ed) return
-  const filename = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`
-  if (editor.doc.path) {
-    const buf = await file.arrayBuffer()
-    const rel = await tauri.writeAsset(dirname(editor.doc.path), filename, new Uint8Array(buf))
-    insertImage(ed, `./${rel}`, file.name)
-  } else {
-    const dataUrl = await new Promise<string>((res) => {
-      const r = new FileReader()
-      r.onload = () => res(r.result as string)
-      r.readAsDataURL(file)
-    })
-    insertImage(ed, dataUrl, file.name)
-  }
+function setLanguage(lang: Lang): void {
+  settings.setLanguage(lang)
+  void settings.persist()
 }
 
 function about(): void {
@@ -209,44 +169,81 @@ function about(): void {
 
 function runCommand(id: string): void {
   switch (id) {
-    case 'new': void newFile(); break
-    case 'open': void openFile(); break
-    case 'save': void save(); break
-    case 'saveAs': void saveAs(); break
+    // File
+    case 'new': void A.newFile(); break
+    case 'newWindow': A.newWindow(); break
+    case 'open': void A.openFileDialog(); break
+    case 'openFolder': void A.openFolderDialog(); break
+    case 'quickOpen': A.quickOpen(); break
+    case 'save': void A.saveFile(); break
+    case 'saveAs': void A.saveFileAs(); break
+    case 'close': A.closeWindow(); break
+    case 'recent': ui.toggleSidebar(); break
     case 'export-md': void doExport('markdown'); break
     case 'export-html': void doExport('html'); break
     case 'export-docx': void doExport('docx'); break
     case 'export-pdf': void doExport('pdf'); break
-    case 'recent': void recent(); break
-    case 'preferences': openSettings(); break
-    case 'undo': undoEdit(); break
-    case 'redo': redoEdit(); break
-    case 'toggleSidebar': toggleSidebar(); break
-    case 'toggleOutline': toggleOutline(); break
-    case 'focusMode': setMode('focus'); break
-    case 'typewriterMode': setMode('typewriter'); break
-    case 'normalMode': setMode('normal'); break
-    case 'insertTable': insertTableCmd(); break
-    case 'insertImage': insertImageCmd(); break
-    case 'insertMath': insertMathCmd(); break
-    case 'insertDiagram': insertDiagramCmd(); break
+    case 'preferences': ui.openSettings(); break
+    // Edit
+    case 'undo': A.undo(); break
+    case 'redo': A.redo(); break
+    case 'cut': A.cut(); break
+    case 'copy': A.copySelection(); break
+    case 'paste': A.paste(); break
+    case 'copyAsMarkdown': void A.copyAsMarkdown(); break
+    case 'pastePlain': void A.pasteAsPlainText(); break
+    case 'selectAll': A.selectAll(); break
+    case 'find': ui.openFind(); break
+    case 'replace': ui.openFind(); break
+    // Paragraph
+    case 'h1': A.setHeading(1); break
+    case 'h2': A.setHeading(2); break
+    case 'h3': A.setHeading(3); break
+    case 'h4': A.setHeading(4); break
+    case 'h5': A.setHeading(5); break
+    case 'h6': A.setHeading(6); break
+    case 'paragraph': A.setParagraph(); break
+    case 'incHeading': A.increaseHeadingLevel(); break
+    case 'decHeading': A.decreaseHeadingLevel(); break
+    case 'table': A.insertTable(); break
+    case 'codeBlock': A.insertCodeBlock(); break
+    case 'mathBlock': A.insertMathBlock(); break
+    case 'quote': A.insertBlockquote(); break
+    case 'orderedList': A.insertOrderedList(); break
+    case 'unorderedList': A.insertUnorderedList(); break
+    case 'taskList': A.insertTaskList(); break
+    case 'indent': A.indentList(); break
+    case 'outdent': A.outdentList(); break
+    // Format
+    case 'bold': A.toggleBold(); break
+    case 'italic': A.toggleItalic(); break
+    case 'underline': A.toggleUnderline(); break
+    case 'strike': A.toggleStrike(); break
+    case 'inlineCode': A.toggleInlineCode(); break
+    case 'link': A.insertHyperlink(); break
+    case 'image': A.insertLocalImage(); break
+    case 'clearFormat': A.clearStyle(); break
+    // View
+    case 'sourceMode': A.toggleSourceMode(); break
+    case 'toggleSidebar': A.toggleSidebar(); break
+    case 'outline': A.showOutlinePanel(); break
+    case 'articles': A.showArticlesPanel(); break
+    case 'fileTree': A.showFileTreePanel(); break
+    case 'focusMode': A.toggleFocusMode(); break
+    case 'typewriterMode': A.toggleTypewriterMode(); break
+    case 'fullscreen': A.toggleFullscreen(); break
+    case 'zoomActual': A.zoomActualSize(); break
+    case 'zoomIn': A.zoomIn(); break
+    case 'zoomOut': A.zoomOut(); break
+    // Theme
     case 'theme-github-light': applyTheme('github-light'); break
     case 'theme-nord-dark': applyTheme('nord-dark'); break
+    // Help
     case 'commandPalette': ui.openCommandPalette(); break
     case 'about': about(); break
   }
   closeMenu()
 }
-
-function onSaveKey(e: KeyboardEvent): void {
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
-    e.preventDefault()
-    void save()
-  }
-}
-
-onMounted(() => window.addEventListener('keydown', onSaveKey))
-onBeforeUnmount(() => window.removeEventListener('keydown', onSaveKey))
 </script>
 
 <template>
@@ -282,7 +279,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onSaveKey))
     <button class="icon-btn" :title="t('menu.commandPalette')" @click="ui.openCommandPalette()">
       ⌘P
     </button>
-    <input ref="fileInput" type="file" accept="image/*" hidden @change="onFilePicked" />
   </header>
 </template>
 
@@ -317,7 +313,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onSaveKey))
   position: absolute;
   top: 100%;
   left: 0;
-  min-width: 180px;
+  min-width: 200px;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -366,5 +362,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onSaveKey))
 }
 .menu-spacer {
   flex: 1 1 auto;
+}
+.icon-btn {
+  border: none;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.icon-btn:hover {
+  background: var(--accent-soft);
 }
 </style>

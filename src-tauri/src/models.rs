@@ -10,6 +10,7 @@ pub struct FileResult {
 
 /// A single entry in the "recent files" list.
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct RecentItem {
     pub path: String,
     pub name: String,
@@ -18,6 +19,7 @@ pub struct RecentItem {
 
 /// A node in the directory/file tree (used by `list_dir`).
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct FileItem {
     pub name: String,
     pub path: String,
@@ -27,6 +29,7 @@ pub struct FileItem {
 
 /// Persisted editor settings.
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub theme: String,
     pub language: String,
@@ -57,6 +60,7 @@ impl Default for Settings {
 
 /// Result of a save operation.
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SaveResult {
     pub success: bool,
     pub path: String,

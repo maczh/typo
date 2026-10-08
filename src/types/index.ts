@@ -52,6 +52,7 @@ export interface FileResult {
 
 /** Result of saving / autosaving a file (mirrors Rust `SaveResult`). */
 export interface SaveResult {
+  success: boolean
   path: string
   savedAt: number
 }

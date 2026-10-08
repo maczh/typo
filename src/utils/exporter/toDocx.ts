@@ -102,7 +102,10 @@ function mdastToDocxChildren(nodes: MdNode[] | undefined): (Paragraph | DocxTabl
                   new TableCell({
                     children: [
                       new Paragraph({
-                        children: inlineToRuns((cell.children?.[0] as MdNode)?.children),
+                        // In remark-gfm mdast a `tableCell`'s children are the
+                        // inline nodes directly (text/emphasis/...), not a
+                        // wrapping paragraph.
+                        children: inlineToRuns(cell.children),
                       }),
                     ],
                   }),

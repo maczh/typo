@@ -5,11 +5,14 @@
 # were extracted into the local sysroot below (see /home/Macro/tauri-dev/), and the
 # real shared libraries are resolved at link/run time from the system /usr/lib.
 #
-# This [env] block makes `cargo` (and therefore `npm run tauri dev` / `tauri build`)
+# This env block makes `cargo` (and therefore `npm run tauri dev` / `tauri build`)
 # pick up those paths automatically. It is sandbox-specific; remove it on a machine
 # that has the matching -dev packages installed normally.
+#
+# Scoped to the host target so it does NOT leak into cross/other-OS builds
+# (Windows/macOS targets resolve their native libs themselves).
 
-[env]
+[target.x86_64-unknown-linux-gnu.env]
 SYSROOT = { value = "/home/Macro/tauri-dev/sysroot", relative = false }
 PKG_CONFIG_PATH = { value = "/home/Macro/tauri-dev/sysroot/usr/lib/x86_64-linux-gnu/pkgconfig:/home/Macro/tauri-dev/sysroot/usr/share/pkgconfig", relative = false }
 LIBCLANG_PATH = { value = "/home/Macro/tauri-dev/sysroot/usr/lib/llvm-14/lib", relative = false }

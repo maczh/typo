@@ -112,7 +112,6 @@ const menus: { id: string; titleKey: string; items: MenuItem[] }[] = [
       { id: 'sourceMode', titleKey: 'menu.sourceMode', shortcut: 'Ctrl/⌘+/' },
       { id: 'toggleSidebar', titleKey: 'menu.toggleSidebar', shortcut: 'Ctrl/⌘+⇧+L' },
       { id: 'outline', titleKey: 'menu.toggleOutline', shortcut: 'Ctrl/⌘+⇧+1' },
-      { id: 'articles', titleKey: 'menu.articles', shortcut: 'Ctrl/⌘+⇧+2' },
       { id: 'fileTree', titleKey: 'menu.fileTree', shortcut: 'Ctrl/⌘+⇧+3' },
       { id: 'focusMode', titleKey: 'menu.focusMode', shortcut: 'F8' },
       { id: 'typewriterMode', titleKey: 'menu.typewriterMode', shortcut: 'F9' },
@@ -227,7 +226,6 @@ function runCommand(id: string): void {
     case 'sourceMode': A.toggleSourceMode(); break
     case 'toggleSidebar': A.toggleSidebar(); break
     case 'outline': A.showOutlinePanel(); break
-    case 'articles': A.showArticlesPanel(); break
     case 'fileTree': A.showFileTreePanel(); break
     case 'focusMode': A.toggleFocusMode(); break
     case 'typewriterMode': A.toggleTypewriterMode(); break

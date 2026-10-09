@@ -62,7 +62,6 @@ export default {
     toggleSidebar: '切换侧栏',
     toggleOutline: '切换大纲',
     outline: '大纲',
-    articles: '文章',
     fileTree: '文件树',
     focusMode: '专注模式',
     typewriterMode: '打字机模式',
@@ -82,7 +81,6 @@ export default {
   sidebar: {
     files: '文件',
     outline: '大纲',
-    articles: '文章',
     openFolder: '打开文件夹',
     newFile: '新建文件',
     empty: '（空）',

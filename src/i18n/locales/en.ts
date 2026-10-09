@@ -62,7 +62,6 @@ export default {
     toggleSidebar: 'Toggle Sidebar',
     toggleOutline: 'Toggle Outline',
     outline: 'Outline',
-    articles: 'Articles',
     fileTree: 'File Tree',
     focusMode: 'Focus Mode',
     typewriterMode: 'Typewriter Mode',
@@ -82,7 +81,6 @@ export default {
   sidebar: {
     files: 'Files',
     outline: 'Outline',
-    articles: 'Articles',
     openFolder: 'Open Folder',
     newFile: 'New File',
     empty: '(empty)',

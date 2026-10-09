@@ -420,10 +420,6 @@ export function showOutlinePanel(): void {
   useUI().setSidebarView('outline')
 }
 
-export function showArticlesPanel(): void {
-  useUI().setSidebarView('articles')
-}
-
 export function showFileTreePanel(): void {
   useUI().setSidebarView('files')
 }

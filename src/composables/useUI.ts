@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 
-export type SidebarView = 'files' | 'outline' | 'articles'
+export type SidebarView = 'files' | 'outline'
 
 // Shared UI visibility state (dialogs, panels). Module-level singleton so any
 // component can open/close dialogs without prop-drilling.

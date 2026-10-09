@@ -76,7 +76,6 @@ const bindings: Binding[] = [
   // View
   { ctrl: true, shift: true, key: 'l', run: A.toggleSidebar },
   { ctrl: true, shift: true, key: '1', run: A.showOutlinePanel },
-  { ctrl: true, shift: true, key: '2', run: A.showArticlesPanel },
   { ctrl: true, shift: true, key: '3', run: A.showFileTreePanel },
   { key: 'f8', run: A.toggleFocusMode },
   { key: 'f9', run: A.toggleTypewriterMode },

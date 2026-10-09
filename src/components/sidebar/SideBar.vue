@@ -17,9 +17,6 @@ const ui = useUI()
       <button class="tab" :class="{ active: ui.sidebarView.value === 'outline' }" @click="ui.sidebarView.value = 'outline'">
         {{ t('sidebar.outline') }}
       </button>
-      <button class="tab" :class="{ active: ui.sidebarView.value === 'articles' }" @click="ui.sidebarView.value = 'articles'">
-        {{ t('sidebar.articles') }}
-      </button>
     </div>
     <div class="sidebar-body">
       <FileTree v-if="ui.sidebarView.value !== 'outline'" />

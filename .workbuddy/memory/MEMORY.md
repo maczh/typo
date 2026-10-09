@@ -46,6 +46,26 @@ web app; WYSIWYG via Milkdown/Crepe (ProseMirror). Editor source-of-truth = Mark
 ## Dependency pin (do not break)
 - Keep `vite ^5` + `@vitejs/plugin-vue ^5` (mismatched `vite ^8` breaks the build).
 
+## Tauri cargo build (Rust) — FIXED 2026-10-09
+- `npm run tauri dev` was failing at the `cargo` build stage (pkg-config couldn't find
+  javascriptcoregtk-4.1 / libsoup-3.0): host Deepin/UOS `beige` apt source is 404 so
+  the WebKit2GTK-4.1/GTK3/libsoup `-dev` packages can't be installed. The Rust code
+  was also stale vs the locked `tauri-plugin-dialog v2.8.1` (callback-style dialog API).
+- Fix (user-approved "local sysroot, zero risk"): bookworm `-dev` headers + `.pc`
+  extracted into `/home/Macro/tauri-dev/sysroot` (pkg-config prefix rewritten) plus
+  `libclang-14-dev` for bindgen; `libX.so -> /usr/lib/x86_64-linux-gnu/libX.so.0`
+  symlinks created in the sysroot libdir for every pkg-config lib so linking uses the
+  system runtime `.so`. `src-tauri/.cargo/config.toml` `[env]` auto-sets
+  PKG_CONFIG_PATH / LIBCLANG_PATH / BINDGEN_EXTRA_CLANG_ARGS / LIBRARY_PATH for cargo.
+- Code fixes: `src/commands/file.rs` (callback dialog API via a `tokio::sync::oneshot`
+  `pick_path` helper; `save_file_as` no longer moves `content`; dropped unused imports),
+  `src/commands/recovery.rs` (`use tauri::Manager;`), and generated RGBA PNG icons
+  (32/128/256) with `tauri.conf.json` `bundle.icon` trimmed to those three.
+- `cargo check` / `cargo build` / `npm run tauri dev` now succeed and launch the window.
+  Non-fatal runtime `g_value_set_boxed` GLib-*CRITICAL*s come from the bookworm-headers /
+  deepin-runtime version skew. On a working-apt machine, prefer installing the matching
+  `-dev` packages and removing `src-tauri/.cargo/config.toml` + `/home/Macro/tauri-dev`.
+
 ## Architecture (added 2026-10-09)
 - `src/commands/prose.ts` — low-level ProseMirror command helpers over the
   Milkdown Editor (heading/paragraph/list/quote/code/mark toggles, introspection).

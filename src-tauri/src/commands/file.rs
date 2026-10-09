@@ -1,11 +1,12 @@
 use std::fs;
 use std::path::Path;
 
-use tauri::{AppHandle, State};
+use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
+use tokio::sync::oneshot;
 
 use crate::models::{FileItem, FileResult, SaveResult};
-use crate::state::{now_ms, AppState};
+use crate::state::now_ms;
 
 /// Extract the file name portion of a path.
 fn file_name(path: &str) -> String {
@@ -13,6 +14,44 @@ fn file_name(path: &str) -> String {
         .file_name()
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_else(|| path.to_string())
+}
+
+/// Which kind of native dialog to show.
+enum DialogMode {
+    Open,
+    Save,
+    Folder,
+}
+
+/// Bridge the callback-based `tauri-plugin-dialog` API into an awaitable result.
+///
+/// `tauri-plugin-dialog` v2.2+ exposes `pick_file`/`save_file`/`pick_folder` as
+/// `FnOnce(Option<FilePath>)` callbacks rather than `async` functions, so we use a
+/// `oneshot` channel to convert the callback into a `Future`.
+async fn pick_path(app: &AppHandle, mode: DialogMode, default_name: Option<&str>) -> Option<String> {
+    let (tx, rx) = oneshot::channel::<Option<String>>();
+    match mode {
+        DialogMode::Open => {
+            app.dialog().file().pick_file(move |p| {
+                let _ = tx.send(p.map(|x| x.to_string()));
+            });
+        }
+        DialogMode::Save => {
+            let mut builder = app.dialog().file();
+            if let Some(name) = default_name {
+                builder = builder.set_file_name(name);
+            }
+            builder.save_file(move |p| {
+                let _ = tx.send(p.map(|x| x.to_string()));
+            });
+        }
+        DialogMode::Folder => {
+            app.dialog().file().pick_folder(move |p| {
+                let _ = tx.send(p.map(|x| x.to_string()));
+            });
+        }
+    }
+    rx.await.ok().flatten()
 }
 
 /// Open a file. When `path` is `None`, a native open dialog is shown.
@@ -23,8 +62,8 @@ pub async fn open_file(
 ) -> Result<FileResult, String> {
     let p = match path {
         Some(p) => p,
-        None => match app.dialog().file().pick_file().await {
-            Some(fp) => fp.to_string(),
+        None => match pick_path(&app, DialogMode::Open, None).await {
+            Some(fp) => fp,
             None => return Err("no file selected".to_string()),
         },
     };
@@ -52,7 +91,8 @@ pub async fn save_file(path: String, content: String) -> Result<SaveResult, Stri
 /// Save a file as a new path and return the resulting `FileResult`.
 #[tauri::command]
 pub async fn save_file_as(path: String, content: String) -> Result<FileResult, String> {
-    fs::write(&path, content).map_err(|e| e.to_string())?;
+    // Borrow `content` for the write so it remains owned for the result below.
+    fs::write(&path, content.as_bytes()).map_err(|e| e.to_string())?;
     Ok(FileResult {
         path: path.clone(),
         name: file_name(&path),
@@ -103,34 +143,26 @@ pub async fn list_dir(path: String) -> Result<Vec<FileItem>, String> {
 /// Show a native open dialog; returns the chosen path or `None`.
 #[tauri::command]
 pub async fn pick_open(app: AppHandle) -> Result<Option<String>, String> {
-    let picked = app.dialog().file().pick_file().await;
-    Ok(picked.map(|fp| fp.to_string()))
+    Ok(pick_path(&app, DialogMode::Open, None).await)
 }
 
 /// Show a native save dialog seeded with `default_name`; returns the chosen path or `None`.
 #[tauri::command]
 pub async fn pick_save(default_name: String, app: AppHandle) -> Result<Option<String>, String> {
-    let picked = app
-        .dialog()
-        .file()
-        .set_file_name(&default_name)
-        .save_file()
-        .await;
-    Ok(picked.map(|fp| fp.to_string()))
+    Ok(pick_path(&app, DialogMode::Save, Some(&default_name)).await)
 }
 
 /// Show a native folder picker; returns the chosen directory or `None`.
 #[tauri::command]
 pub async fn pick_dir(app: AppHandle) -> Result<Option<String>, String> {
-    let picked = app.dialog().file().pick_folder().await;
-    Ok(picked.map(|p| p.to_string()))
+    Ok(pick_path(&app, DialogMode::Folder, None).await)
 }
 
 /// Pick a folder and list its immediate children in one call.
 #[tauri::command]
 pub async fn open_folder(app: AppHandle) -> Result<Vec<FileItem>, String> {
-    let dir = match app.dialog().file().pick_folder().await {
-        Some(d) => d.to_string(),
+    let dir = match pick_path(&app, DialogMode::Folder, None).await {
+        Some(d) => d,
         None => return Ok(Vec::new()),
     };
     list_dir(dir).await

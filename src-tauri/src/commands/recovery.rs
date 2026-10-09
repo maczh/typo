@@ -3,7 +3,7 @@ use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 use crate::models::{RecoveryItem, SaveResult};
 use crate::state::{now_ms, AppState};

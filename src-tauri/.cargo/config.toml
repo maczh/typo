@@ -1,0 +1,17 @@
+# Cargo environment for building the Typo Tauri v2 app inside this sandbox.
+#
+# The host's Deepin/UOS apt sources are broken, so the WebKit2GTK / GTK3 / libsoup
+# -dev packages cannot be installed system-wide. Instead their headers + .pc files
+# were extracted into the local sysroot below (see /home/Macro/tauri-dev/), and the
+# real shared libraries are resolved at link/run time from the system /usr/lib.
+#
+# This [env] block makes `cargo` (and therefore `npm run tauri dev` / `tauri build`)
+# pick up those paths automatically. It is sandbox-specific; remove it on a machine
+# that has the matching -dev packages installed normally.
+
+[env]
+SYSROOT = { value = "/home/Macro/tauri-dev/sysroot", relative = false }
+PKG_CONFIG_PATH = { value = "/home/Macro/tauri-dev/sysroot/usr/lib/x86_64-linux-gnu/pkgconfig:/home/Macro/tauri-dev/sysroot/usr/share/pkgconfig", relative = false }
+LIBCLANG_PATH = { value = "/home/Macro/tauri-dev/sysroot/usr/lib/llvm-14/lib", relative = false }
+BINDGEN_EXTRA_CLANG_ARGS = { value = "--sysroot=/home/Macro/tauri-dev/sysroot", relative = false }
+LIBRARY_PATH = { value = "/usr/lib/x86_64-linux-gnu", relative = false }

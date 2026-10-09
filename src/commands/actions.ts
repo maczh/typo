@@ -7,7 +7,18 @@ import { useTauri, isTauri } from '@/composables/useTauri'
 import { useUI } from '@/composables/useUI'
 import { showToast } from '@/utils/toast'
 import { exportDocument } from '@/utils/exporter'
-import { insertTable as insertTablePlugin } from '@/milkdown/plugins/table'
+import {
+  insertTable as insertTablePlugin,
+  addRow as tableAddRow,
+  removeRow as tableRemoveRow,
+  addColumn as tableAddColumn,
+  removeColumn as tableRemoveColumn,
+  removeTable as tableRemoveTable,
+  moveRow as tableMoveRow,
+  moveColumn as tableMoveColumn,
+  clearColumnWidths as tableClearWidths,
+  tableToMarkdown,
+} from '@/milkdown/plugins/table'
 import { insertMath } from '@/milkdown/plugins/latex'
 import { insertDiagram } from '@/milkdown/plugins/mermaid'
 import { insertImage } from '@/milkdown/plugins/image'
@@ -228,6 +239,70 @@ export function decreaseHeadingLevel(): void {
 
 export function insertTable(): void {
   withEditor((e) => insertTablePlugin(e))
+}
+
+/* ---------------------------- table operations (context menu) ---------------------------- */
+
+export function tableRowAbove(): void {
+  withEditor((e) => tableAddRow(e, false))
+}
+
+export function tableRowBelow(): void {
+  withEditor((e) => tableAddRow(e, true))
+}
+
+export function tableColLeft(): void {
+  withEditor((e) => tableAddColumn(e, false))
+}
+
+export function tableColRight(): void {
+  withEditor((e) => tableAddColumn(e, true))
+}
+
+export function tableDeleteRow(): void {
+  withEditor((e) => tableRemoveRow(e))
+}
+
+export function tableDeleteCol(): void {
+  withEditor((e) => tableRemoveColumn(e))
+}
+
+export function tableDelete(): void {
+  withEditor((e) => tableRemoveTable(e))
+}
+
+export function tableMoveRowUp(): void {
+  withEditor((e) => tableMoveRow(e, -1))
+}
+
+export function tableMoveRowDown(): void {
+  withEditor((e) => tableMoveRow(e, 1))
+}
+
+export function tableMoveColLeft(): void {
+  withEditor((e) => tableMoveColumn(e, -1))
+}
+
+export function tableMoveColRight(): void {
+  withEditor((e) => tableMoveColumn(e, 1))
+}
+
+export function tableFormat(): void {
+  withEditor((e) => tableClearWidths(e))
+  showToast('已格式化表格：列宽随内容自适应', 'info')
+}
+
+export async function tableCopy(): Promise<void> {
+  const e = useMilkdown().getEditor()
+  if (!e) return
+  const md = tableToMarkdown(e)
+  if (!md) return
+  try {
+    await navigator.clipboard.writeText(md)
+    showToast('已复制表格（Markdown）', 'info')
+  } catch {
+    showToast('复制失败：剪贴板权限受限', 'error')
+  }
 }
 
 export function insertCodeBlock(): void {

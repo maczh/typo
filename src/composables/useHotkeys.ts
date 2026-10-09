@@ -86,11 +86,22 @@ const bindings: Binding[] = [
   { ctrl: true, shift: true, key: '-', run: A.zoomOut },
 ]
 
+/**
+ * True when the event originates from a plain form field, or a contentEditable
+ * that is NOT the editor surface.
+ *
+ * The Milkdown/ProseMirror editing surface is itself `contentEditable`, so it
+ * must be treated as *the editor* rather than as a field. Otherwise every
+ * paragraph / format hotkey (Ctrl+1..6, Ctrl+0, ...) would be suppressed the
+ * moment the user types inside the editor — which is exactly where they apply.
+ */
 function isField(el: EventTarget | null): boolean {
   const e = el as HTMLElement | null
   if (!e) return false
   const tag = e.tagName
-  return tag === 'INPUT' || tag === 'TEXTAREA' || e.isContentEditable
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return true
+  if (e.isContentEditable) return !e.closest('.milkdown')
+  return false
 }
 
 export function useHotkeys(): void {

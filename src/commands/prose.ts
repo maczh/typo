@@ -328,3 +328,71 @@ export function isNodeActive(
   })
   return active
 }
+
+/* ------------------------------------------------------------------ */
+/* Position helpers (context menu)                                     */
+/* ------------------------------------------------------------------ */
+
+/** The kind of block under a document position — drives the context menu. */
+export type BlockKind = 'paragraph' | 'heading' | 'list' | 'quote' | 'code' | 'table' | 'image'
+
+const LIST_ANCESTORS = ['list_item', 'bullet_list', 'ordered_list', 'task_list_item']
+
+export function blockKindAt(editor: Editor, pos: number): BlockKind {
+  let kind: BlockKind = 'paragraph'
+  runWithView(editor, (view) => {
+    const max = view.state.doc.content.size
+    const $pos = view.state.doc.resolve(Math.max(0, Math.min(pos, max)))
+    let sawQuote = false
+    let sawList = false
+    for (let d = $pos.depth; d > 0; d -= 1) {
+      const name = $pos.node(d).type.name
+      if (name === 'table') {
+        kind = 'table'
+        return
+      }
+      if (name === 'code_block' || name === 'fence') {
+        kind = 'code'
+        return
+      }
+      if (name === 'image' || name === 'image_block') {
+        kind = 'image'
+        return
+      }
+      if (name === 'blockquote') sawQuote = true
+      if (LIST_ANCESTORS.includes(name)) sawList = true
+    }
+    const parentName = $pos.parent.type.name
+    if (parentName === 'heading') kind = 'heading'
+    else if (sawList) kind = 'list'
+    else if (sawQuote) kind = 'quote'
+    else kind = 'paragraph'
+  })
+  return kind
+}
+
+/** Map viewport coordinates to a document position (null when outside). */
+export function posAtCoords(
+  editor: Editor,
+  coords: { left: number; top: number },
+): number | null {
+  let pos: number | null = null
+  runWithView(editor, (view) => {
+    const res = view.posAtCoords(coords)
+    if (res) pos = res.pos
+  })
+  return pos
+}
+
+/** Place the caret at `pos` so subsequent commands apply to that block. */
+export function setCaret(editor: Editor, pos: number): void {
+  runWithView(editor, (view) => {
+    try {
+      const clamped = Math.max(0, Math.min(pos, view.state.doc.content.size))
+      const sel = TextSelection.near(view.state.doc.resolve(clamped))
+      view.dispatch(view.state.tr.setSelection(sel).scrollIntoView())
+    } catch {
+      /* the position moved out of range between click and dispatch */
+    }
+  })
+}

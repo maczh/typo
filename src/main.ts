@@ -12,6 +12,9 @@ import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/nord.css'
 // Mermaid diagram blocks (source-hide + diagram preview).
 import './styles/mermaid.css'
+// Typora-parity refinements (source markers, tables, code blocks). Must load
+// after the Crepe theme so its rules take precedence by source order.
+import './styles/typora.css'
 
 const app = createApp(App)
 

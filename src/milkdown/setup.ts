@@ -4,6 +4,7 @@ import { insert, getHTML as getHTMLCommand } from '@milkdown/utils'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { i18n } from '@/i18n'
 import { mermaidDiagramPlugin } from './plugins/mermaid'
+import { markdownMarkerPlugin } from './plugins/markdownMarker'
 
 /** A thin, stable wrapper around a Crepe editor instance. */
 export interface EditorInstance {
@@ -84,6 +85,7 @@ export async function createEditor(
     // Registered after Crepe's own features so the diagram decorations win.
     instance.addFeature<void>((editor) => {
       editor.use(mermaidDiagramPlugin)
+      editor.use(markdownMarkerPlugin)
     })
     attach(instance)
     return instance

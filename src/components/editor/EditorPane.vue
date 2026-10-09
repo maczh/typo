@@ -7,9 +7,12 @@ import { useSettingsStore } from '@/stores/settings'
 import { useUI } from '@/composables/useUI'
 import { useSourceMode } from '@/composables/useSourceMode'
 import { buildOutlineFromMarkdown } from '@/utils/outline'
+import { blockKindAt, posAtCoords, setCaret } from '@/commands/prose'
+import { useEditorMenu } from '@/composables/useEditorMenu'
 import ImageHandler from './ImageHandler.vue'
 import TableToolbar from './TableToolbar.vue'
 import SourceView from './SourceView.vue'
+import EditorContextMenu from './EditorContextMenu.vue'
 
 const { t } = useI18n()
 const paneEl = ref<HTMLElement | null>(null)
@@ -19,6 +22,7 @@ const editorStore = useEditorStore()
 const settingsStore = useSettingsStore()
 const ui = useUI()
 const source = useSourceMode()
+const editorMenu = useEditorMenu()
 
 /** Content column bounds, in percent of the editor pane width. */
 const MIN_WIDTH = 30
@@ -76,13 +80,74 @@ async function handleChange(md: string): Promise<void> {
   editorStore.setOutline(buildOutlineFromMarkdown(md))
 }
 
+/**
+ * Right-click inside the editor → open the context menu with a set of actions
+ * that depends on what the caret is on (table vs. paragraph vs. list vs. code…).
+ */
+function onContextMenu(e: MouseEvent): void {
+  const editor = milkdown.getEditor()
+  if (!editor || !container.value) return
+  const target = e.target as Node | null
+  if (!target || !container.value.contains(target)) return
+  const pos = posAtCoords(editor, { left: e.clientX, top: e.clientY })
+  if (pos == null) return
+  e.preventDefault()
+  e.stopPropagation()
+  setCaret(editor, pos)
+  editorMenu.show(e.clientX, e.clientY, blockKindAt(editor, pos))
+}
+
+/**
+ * The block handle at the start of each line: a short press (no drag) on its
+ * drag grip opens the same menu, pre-targeted at that block's style submenu.
+ */
+let handlePress: { x: number; y: number; el: HTMLElement } | null = null
+
+function onHandlePointerDown(e: PointerEvent): void {
+  const target = e.target as HTMLElement | null
+  const handle = target?.closest('.milkdown-block-handle') as HTMLElement | null
+  if (!handle || !target) {
+    handlePress = null
+    return
+  }
+  const items = handle.querySelectorAll('.operation-item')
+  const clicked = target.closest('.operation-item')
+  // The last operation-item is the drag grip; the first is Crepe's "+" button.
+  if (!clicked || clicked !== items[items.length - 1]) {
+    handlePress = null
+    return
+  }
+  handlePress = { x: e.clientX, y: e.clientY, el: handle }
+}
+
+function onHandlePointerUp(e: PointerEvent): void {
+  const press = handlePress
+  handlePress = null
+  if (!press) return
+  // Treat it as a drag (not a click) when the pointer moved noticeably.
+  if (Math.abs(e.clientX - press.x) > 4 || Math.abs(e.clientY - press.y) > 4) return
+  const editor = milkdown.getEditor()
+  if (!editor) return
+  const rect = press.el.getBoundingClientRect()
+  const pos = posAtCoords(editor, { left: rect.right + 8, top: rect.top + rect.height / 2 })
+  if (pos == null) return
+  setCaret(editor, pos)
+  editorMenu.show(rect.right + 6, rect.top - 4, blockKindAt(editor, pos))
+}
+
 onMounted(async () => {
+  document.addEventListener('contextmenu', onContextMenu, true)
+  document.addEventListener('pointerdown', onHandlePointerDown, true)
+  document.addEventListener('pointerup', onHandlePointerUp, true)
   if (!container.value) return
   await milkdown.mount(container.value, editorStore.doc.content, handleChange)
   editorStore.setOutline(buildOutlineFromMarkdown(editorStore.doc.content))
 })
 
 onBeforeUnmount(() => {
+  document.removeEventListener('contextmenu', onContextMenu, true)
+  document.removeEventListener('pointerdown', onHandlePointerDown, true)
+  document.removeEventListener('pointerup', onHandlePointerUp, true)
   milkdown.destroy()
 })
 
@@ -128,6 +193,7 @@ watch(
       <span class="grip"></span>
     </div>
     <ImageHandler />
+    <EditorContextMenu />
   </div>
 </template>
 

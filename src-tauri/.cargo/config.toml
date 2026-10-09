@@ -13,8 +13,4 @@
 # (Windows/macOS targets resolve their native libs themselves).
 
 [target.x86_64-unknown-linux-gnu.env]
-SYSROOT = { value = "/home/Macro/tauri-dev/sysroot", relative = false }
-PKG_CONFIG_PATH = { value = "/home/Macro/tauri-dev/sysroot/usr/lib/x86_64-linux-gnu/pkgconfig:/home/Macro/tauri-dev/sysroot/usr/share/pkgconfig", relative = false }
-LIBCLANG_PATH = { value = "/home/Macro/tauri-dev/sysroot/usr/lib/llvm-14/lib", relative = false }
-BINDGEN_EXTRA_CLANG_ARGS = { value = "--sysroot=/home/Macro/tauri-dev/sysroot", relative = false }
-LIBRARY_PATH = { value = "/usr/lib/x86_64-linux-gnu", relative = false }
+rustflags = []

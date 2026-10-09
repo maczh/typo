@@ -74,6 +74,8 @@ export interface Settings {
   autoSave: boolean
   autoSaveInterval: number // ms
   mode: EditorMode
+  /** WYSIWYG content column width, as a percentage of the editor pane. */
+  contentWidth: number
   customCss: string
 }
 

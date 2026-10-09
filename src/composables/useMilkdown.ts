@@ -19,6 +19,11 @@ export function useMilkdown() {
   ): Promise<void> {
     instance.value = await createEditor(container, defaultValue, { onChange })
     isReady.value = true
+    // Opt-in handle so automated probes can drive the editor. Only exposed when the
+    // URL carries `?e2e=1`, so it has no effect in normal use or production.
+    if (typeof location !== 'undefined' && location.search.includes('e2e=1')) {
+      ;(window as unknown as { __typo?: EditorInstance }).__typo = instance.value
+    }
   }
 
   function getMarkdown(): Promise<string> | string {

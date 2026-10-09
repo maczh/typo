@@ -145,6 +145,18 @@ export default {
     image: '图片',
     source: '源码',
   },
+  editor: {
+    resizeHint: '拖拽调整编辑区宽度（双击恢复 70%）',
+    codeCopy: '复制',
+    codeSearchLanguage: '搜索语言',
+    codeNoResult: '无结果',
+    codePreview: '预览',
+    codePreviewEdit: '编辑',
+    codePreviewHide: '隐藏',
+    mermaidLoading: '正在渲染图表…',
+    mermaidInvalid: '图表语法有误，请检查源码',
+    mermaidHint: '点击图表可编辑源码',
+  },
   find: {
     placeholder: '查找…',
     matchCase: '区分大小写',

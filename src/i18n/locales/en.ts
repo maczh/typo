@@ -145,6 +145,18 @@ export default {
     image: 'Image',
     source: 'Source',
   },
+  editor: {
+    resizeHint: 'Drag to resize the editor column (double-click to reset to 70%)',
+    codeCopy: 'Copy',
+    codeSearchLanguage: 'Search language',
+    codeNoResult: 'No result',
+    codePreview: 'Preview',
+    codePreviewEdit: 'Edit',
+    codePreviewHide: 'Hide',
+    mermaidLoading: 'Rendering diagram…',
+    mermaidInvalid: 'Invalid diagram syntax, please check the source',
+    mermaidHint: 'Click the diagram to edit its source',
+  },
   find: {
     placeholder: 'Find…',
     matchCase: 'Match Case',

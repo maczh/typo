@@ -1,6 +1,9 @@
 import { Crepe } from '@milkdown/crepe'
 import type { Editor } from '@milkdown/core'
 import { insert, getHTML as getHTMLCommand } from '@milkdown/utils'
+import { oneDark } from '@codemirror/theme-one-dark'
+import { i18n } from '@/i18n'
+import { mermaidDiagramPlugin } from './plugins/mermaid'
 
 /** A thin, stable wrapper around a Crepe editor instance. */
 export interface EditorInstance {
@@ -23,9 +26,38 @@ function getCoreEditor(crepe: Crepe | null): Editor | null {
   return (crepe as unknown as { editor?: Editor }).editor ?? null
 }
 
+function isDarkTheme(): boolean {
+  return (document.documentElement.getAttribute('data-theme') || '').includes('dark')
+}
+
+/**
+ * Crepe's code block defaults to the **oneDark** CodeMirror theme, which is wrong
+ * for a light page (washed-out syntax colors, a dark active-line gutter on a light
+ * surface). Pick the CodeMirror theme that matches the app theme instead, and
+ * localise the widgets Crepe injects into every code block.
+ */
+function crepeConfig(root: HTMLElement, defaultValue: string) {
+  const t = (key: string): string => i18n.global.t(key)
+  return {
+    root,
+    defaultValue,
+    featureConfigs: {
+      'code-mirror': {
+        theme: isDarkTheme() ? oneDark : [],
+        copyText: t('editor.codeCopy'),
+        searchPlaceholder: t('editor.codeSearchLanguage'),
+        noResultText: t('editor.codeNoResult'),
+        previewToggleText: (previewOnlyMode: boolean) =>
+          previewOnlyMode ? t('editor.codePreviewEdit') : t('editor.codePreviewHide'),
+      },
+    },
+  }
+}
+
 /**
  * Create a WYSIWYG editor backed by `@milkdown/crepe` (which bundles KaTeX math,
- * Mermaid, highlight.js, GFM tables and images with full markdown round-trip).
+ * highlight.js, GFM tables and images with full markdown round-trip), plus a
+ * custom Mermaid diagram plugin (Crepe ships no Mermaid feature of its own).
  *
  * `loadMarkdown` recreates the instance so the new content is loaded cleanly
  * without fighting the existing ProseMirror history.
@@ -48,7 +80,11 @@ export async function createEditor(
   }
 
   const spawn = (initial: string): Crepe => {
-    const instance = new Crepe({ root, defaultValue: initial })
+    const instance = new Crepe(crepeConfig(root, initial))
+    // Registered after Crepe's own features so the diagram decorations win.
+    instance.addFeature<void>((editor) => {
+      editor.use(mermaidDiagramPlugin)
+    })
     attach(instance)
     return instance
   }

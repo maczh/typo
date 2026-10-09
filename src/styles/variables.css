@@ -24,6 +24,9 @@
   --mono-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 
   --content-max-width: 800px;
+  /* WYSIWYG content column width, as a share of the editor pane. Resizable by
+     dragging the handle on the right edge of the column (see EditorPane.vue). */
+  --content-width: 70%;
   --sidebar-width: 260px;
   --panel-width: 240px;
   --menubar-height: 34px;

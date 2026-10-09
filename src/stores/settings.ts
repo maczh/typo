@@ -13,6 +13,7 @@ const defaultSettings: Settings = {
   autoSave: true,
   autoSaveInterval: 30000,
   mode: 'normal',
+  contentWidth: 70,
   customCss: '',
 }
 
@@ -48,6 +49,7 @@ export const useSettingsStore = defineStore('settings', () => {
     applyTheme(settings.theme)
     setLanguage(settings.language)
     applyTypography()
+    applyLayout()
     applyCustomCss(settings.customCss)
   }
 
@@ -73,6 +75,14 @@ export const useSettingsStore = defineStore('settings', () => {
     el.style.setProperty('--font-size', `${settings.fontSize}px`)
     el.style.setProperty('--line-height', String(settings.lineHeight))
     el.style.setProperty('--font-family', settings.fontFamily)
+  }
+
+  /** Push the WYSIWYG column width into its CSS variable. */
+  function applyLayout(): void {
+    const width = Number(settings.contentWidth)
+    const safe = Number.isFinite(width) ? Math.min(100, Math.max(30, width)) : 70
+    settings.contentWidth = safe
+    document.documentElement.style.setProperty('--content-width', `${safe}%`)
   }
 
   /** Inject (or clear) user custom CSS into a dedicated <style> tag. */
@@ -108,6 +118,7 @@ export const useSettingsStore = defineStore('settings', () => {
     persist,
     applyTheme,
     applyTypography,
+    applyLayout,
     applyCustomCss,
     setLanguage,
     update,

@@ -27,29 +27,27 @@ export default defineConfig({
     target: 'esnext',
     outDir: 'dist',
     emptyOutDir: true,
+    // NOTE: esbuild's minifier reorders module init in a way that trips a
+    // genuine circular-dependency TDZ inside @milkdown/components ("Cannot
+    // access 've' before initialization"), which crashes the production build
+    // at load time. Terser preserves init order, so we use it instead of the
+    // default esbuild minifier. (Dev mode is unaffected because it serves ESM
+    // modules individually.)
+    minify: 'terser',
     chunkSizeWarningLimit: 3000,
-    rollupOptions: {
-      output: {
-        // Split heavy, optionally lazy dependencies into their own chunks so the
-        // first paint stays light and mermaid/katex can be code-split.
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('mermaid')) return 'vendor-mermaid'
-            if (id.includes('katex')) return 'vendor-katex'
-            if (id.includes('highlight.js')) return 'vendor-highlight'
-            if (id.includes('docx')) return 'vendor-docx'
-            if (id.includes('@milkdown') || id.includes('prosemirror')) return 'vendor-milkdown'
-            if (id.includes('vue') || id.includes('pinia') || id.includes('vue-i18n')) return 'vendor-vue'
-          }
-          return undefined
-        },
-      },
-    },
   },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+  },
+  // Pre-bundle Mermaid + the CodeMirror theme + the language-data package (which
+  // Crepe's code block lazy-loads per language). This keeps them in the optimized
+  // deps cache so the dynamic imports during a session don't trigger a mid-session
+  // re-optimize — which the sandbox bulk-delete guard would otherwise block and
+  // crash the dev server.
+  optimizeDeps: {
+    include: ['mermaid', '@codemirror/theme-one-dark', '@codemirror/language-data'],
   },
   // Tauri's `invoke` works without the optional TAURI_* env vars in dev.
   envPrefix: ['VITE_', 'TAURI_'],

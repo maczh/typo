@@ -5,7 +5,6 @@ import Toolbar from '../editor/Toolbar.vue'
 import StatusBar from './StatusBar.vue'
 import SideBar from '../sidebar/SideBar.vue'
 import EditorPane from '../editor/EditorPane.vue'
-import RightPanel from '../panels/RightPanel.vue'
 import CommandPalette from '../command/CommandPalette.vue'
 import FindDialog from '../dialogs/FindDialog.vue'
 import QuickOpenDialog from '../dialogs/QuickOpenDialog.vue'
@@ -28,7 +27,7 @@ const tauri = useTauri()
 useHotkeys()
 
 // Destructure so the refs auto-unwrap in the template.
-const { sidebarVisible, rightPanelVisible, commandPaletteOpen, recoveryOpen, settingsOpen, sourceMode, findOpen, quickOpenOpen } = ui
+const { sidebarVisible, commandPaletteOpen, recoveryOpen, settingsOpen, sourceMode, findOpen, quickOpenOpen } = ui
 
 onMounted(async () => {
   await settingsStore.load()
@@ -57,7 +56,6 @@ onBeforeUnmount(() => {
       <main class="editor-area">
         <EditorPane />
       </main>
-      <RightPanel v-if="rightPanelVisible" />
     </div>
     <StatusBar />
     <FindDialog v-if="findOpen" />

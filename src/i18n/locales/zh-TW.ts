@@ -145,6 +145,18 @@ export default {
     image: '圖片',
     source: '原始碼',
   },
+  editor: {
+    resizeHint: '拖曳調整編輯區寬度（雙擊回復 70%）',
+    codeCopy: '複製',
+    codeSearchLanguage: '搜尋語言',
+    codeNoResult: '無結果',
+    codePreview: '預覽',
+    codePreviewEdit: '編輯',
+    codePreviewHide: '隱藏',
+    mermaidLoading: '正在渲染圖表…',
+    mermaidInvalid: '圖表語法有誤，請檢查原始碼',
+    mermaidHint: '點擊圖表可編輯原始碼',
+  },
   find: {
     placeholder: '尋找…',
     matchCase: '區分大小寫',

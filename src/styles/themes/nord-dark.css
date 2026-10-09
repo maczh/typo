@@ -46,3 +46,24 @@
 [data-theme='nord-dark'] ::selection {
   background: var(--editor-selection);
 }
+
+/* Crepe design tokens → Nord Dark (see github-light.css for the rationale). */
+[data-theme='nord-dark'] .milkdown {
+  --crepe-color-background: var(--bg);
+  --crepe-color-on-background: var(--fg);
+  --crepe-color-surface: var(--code-bg);
+  --crepe-color-surface-low: var(--code-bg);
+  --crepe-color-on-surface: var(--fg);
+  --crepe-color-on-surface-variant: var(--fg-muted);
+  --crepe-color-outline: var(--border);
+  --crepe-color-primary: var(--accent);
+  --crepe-color-secondary: var(--accent-soft);
+  --crepe-color-on-secondary: var(--fg);
+  --crepe-color-inverse: var(--fg);
+  --crepe-color-on-inverse: var(--bg);
+  --crepe-color-inline-code: #bf616a;
+  --crepe-color-error: #bf616a;
+  --crepe-color-hover: var(--accent-soft);
+  --crepe-color-selected: var(--accent-soft);
+  --crepe-color-inline-area: var(--border);
+}

@@ -9,7 +9,6 @@ const recoveryOpen = ref(false)
 const commandPaletteOpen = ref(false)
 const sidebarVisible = ref(true)
 const outlineVisible = ref(true)
-const rightPanelVisible = ref(true)
 
 // New: source-mode (Ctrl+/), find/replace dialog, quick-open dialog, and the
 // active sidebar tab (driven by View-menu / Typora hotkeys).
@@ -26,7 +25,6 @@ export function useUI() {
     commandPaletteOpen,
     sidebarVisible,
     outlineVisible,
-    rightPanelVisible,
     sourceMode,
     findOpen,
     quickOpenOpen,
@@ -53,7 +51,6 @@ export function useUI() {
       sidebarVisible.value = true
       sidebarView.value = 'outline'
     },
-    toggleRightPanel: () => (rightPanelVisible.value = !rightPanelVisible.value),
 
     toggleSourceMode: () => (sourceMode.value = !sourceMode.value),
     openSourceMode: () => (sourceMode.value = true),

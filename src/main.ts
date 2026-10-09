@@ -10,6 +10,8 @@ import './styles/app.css'
 // Crepe base theme: common structure + Nord (light) color variables.
 import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/nord.css'
+// Mermaid diagram blocks (source-hide + diagram preview).
+import './styles/mermaid.css'
 
 const app = createApp(App)
 

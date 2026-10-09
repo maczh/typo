@@ -5,6 +5,7 @@ import { useFilesStore } from '@/stores/files'
 import { useSettingsStore } from '@/stores/settings'
 import { useTauri, isTauri } from '@/composables/useTauri'
 import { useUI } from '@/composables/useUI'
+import { readClipboardText, writeClipboardText } from '@/composables/useClipboard'
 import { showToast } from '@/utils/toast'
 import { exportDocument } from '@/utils/exporter'
 import {
@@ -161,27 +162,46 @@ export function redo(): void {
 }
 
 export function cut(): void {
-  try {
-    document.execCommand('cut')
-  } catch {
-    /* ignore */
+  const editor = useMilkdown().getEditor()
+  const range = prose.getSelectionRange(editor)
+  if (!range || range.empty) {
+    showToast('请先选中要剪切的内容', 'info')
+    return
   }
+  const text = prose.getSelectionText(editor)
+  void writeClipboardText(text).then((ok) => {
+    if (!ok) {
+      showToast('剪切失败：无法写入系统剪贴板', 'error')
+      return
+    }
+    withEditor((e) => {
+      prose.setSelectionRange(e, range.from, range.to)
+      prose.deleteSelection(e)
+    })
+  })
 }
 
 export function copySelection(): void {
-  try {
-    document.execCommand('copy')
-  } catch {
-    /* ignore */
+  const text = prose.getSelectionText(useMilkdown().getEditor())
+  if (!text) {
+    showToast('请先选中要复制的内容', 'info')
+    return
   }
+  void writeClipboardText(text).then((ok) => {
+    showToast(ok ? '已复制' : '复制失败：剪贴板不可用', ok ? 'info' : 'error')
+  })
 }
 
+/** Paste the clipboard, letting Markdown syntax in it take effect. */
 export function paste(): void {
-  try {
-    document.execCommand('paste')
-  } catch {
-    showToast('请使用 Ctrl+V 粘贴（WebView 限制）', 'info')
-  }
+  void (async () => {
+    const text = await readClipboardText()
+    if (!text) {
+      showToast('无法读取剪贴板内容（可改用 Ctrl+V）', 'error')
+      return
+    }
+    withEditor((e) => e.action(insert(text)))
+  })()
 }
 
 export async function copyAsMarkdown(): Promise<void> {
@@ -189,21 +209,17 @@ export async function copyAsMarkdown(): Promise<void> {
 }
 
 export async function pasteAsPlainText(): Promise<void> {
-  try {
-    const text = await navigator.clipboard.readText()
-    withEditor((e) => e.action(insert(text)))
-  } catch {
-    showToast('无法读取剪贴板（权限受限），请使用 Ctrl+Shift+V', 'error')
+  const text = await readClipboardText()
+  if (!text) {
+    showToast('无法读取剪贴板内容（可改用 Ctrl+Shift+V）', 'error')
+    return
   }
+  withEditor((e) => prose.insertPlainText(e, text))
 }
 
 async function copyText(text: string): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(text)
-    showToast('已复制', 'info')
-  } catch {
-    showToast('复制失败：剪贴板权限受限', 'error')
-  }
+  const ok = await writeClipboardText(text)
+  showToast(ok ? '已复制' : '复制失败：剪贴板不可用', ok ? 'info' : 'error')
 }
 
 export function selectAll(): void {
@@ -227,8 +243,20 @@ export function focusEditor(): void {
   withEditor((e) => prose.focus(e))
 }
 
+/**
+ * The 🗑 button. With a selection it removes just that text; on a bare caret
+ * (the block-handle entry point) it removes the whole block, which is what
+ * Typora's block menu does.
+ */
 export function deleteSelection(): void {
-  withEditor((e) => prose.deleteSelection(e))
+  withEditor((e) => {
+    const range = prose.getSelectionRange(e)
+    if (range && !range.empty) {
+      prose.deleteSelection(e)
+      return
+    }
+    if (!prose.deleteBlock(e)) showToast('当前位置没有可删除的内容块', 'info')
+  })
 }
 
 export function openFind(find = true): void {
@@ -314,12 +342,8 @@ export async function tableCopy(): Promise<void> {
   if (!e) return
   const md = tableToMarkdown(e)
   if (!md) return
-  try {
-    await navigator.clipboard.writeText(md)
-    showToast('已复制表格（Markdown）', 'info')
-  } catch {
-    showToast('复制失败：剪贴板权限受限', 'error')
-  }
+  const ok = await writeClipboardText(md)
+  showToast(ok ? '已复制表格（Markdown）' : '复制失败：剪贴板不可用', ok ? 'info' : 'error')
 }
 
 export function insertCodeBlock(): void {

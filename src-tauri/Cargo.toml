@@ -15,9 +15,14 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
+# Native clipboard access. The WebKitGTK webview blocks `document.execCommand('paste')`
+# outright and gates `navigator.clipboard.readText()` behind a permission request that
+# Tauri never answers, so the editor's cut/copy/paste buttons need a native path.
+tauri-plugin-clipboard-manager = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
+base64 = "0.22"
 
 [features]
 # This feature is used for production builds where `devUrl` is disabled.

@@ -192,6 +192,7 @@ export default {
     copy: 'Copy',
     paste: 'Paste',
     remove: 'Delete',
+    copyAsMarkdown: 'Copy as Markdown',
     copyAs: 'Copy as',
     pasteAs: 'Paste as plain text',
     bold: 'Bold',

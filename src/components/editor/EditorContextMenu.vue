@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as A from '@/commands/actions'
 import { useEditorMenu } from '@/composables/useEditorMenu'
+import Icon from '@/components/common/Icon.vue'
 
 /**
  * Typora-style floating menu, shared by two entry points:
@@ -143,35 +144,118 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
       >
         <!-- clipboard -->
         <div class="ctx-bar">
-          <button type="button" :title="t('ctx.cut')" @click="run(A.cut)">✂</button>
-          <button type="button" :title="t('ctx.copy')" @click="run(A.copySelection)">⧉</button>
-          <button type="button" :title="t('ctx.paste')" @click="run(A.paste)">▤</button>
-          <button type="button" :title="t('ctx.remove')" @click="run(A.deleteSelection)">🗑</button>
-        </div>
-
-        <div class="ctx-bar">
-          <button type="button" class="wide" @click="run(A.copyAsMarkdown)">
-            {{ t('ctx.copyAs') }} Markdown
+          <button type="button" :title="t('ctx.cut')" :aria-label="t('ctx.cut')" @click="run(A.cut)">
+            <Icon name="cut" />
           </button>
-          <button type="button" class="wide" @click="run(A.pasteAsPlainText)">
-            {{ t('ctx.pasteAs') }}
+          <button type="button" :title="t('ctx.copy')" :aria-label="t('ctx.copy')" @click="run(A.copySelection)">
+            <Icon name="copy" />
+          </button>
+          <button type="button" :title="t('ctx.paste')" :aria-label="t('ctx.paste')" @click="run(A.paste)">
+            <Icon name="paste" />
+          </button>
+          <button type="button" :title="t('ctx.remove')" :aria-label="t('ctx.remove')" @click="run(A.deleteSelection)">
+            <Icon name="delete" />
           </button>
         </div>
 
         <div class="ctx-bar">
-          <button type="button" :class="{ active: markActive('strong', 'bold') }" @click="run(A.toggleBold)"><b>B</b></button>
-          <button type="button" :class="{ active: markActive('emphasis', 'em', 'italic') }" @click="run(A.toggleItalic)"><i>I</i></button>
-          <button type="button" :class="{ active: markActive('code_inline', 'code') }" @click="run(A.toggleInlineCode)">‹›</button>
-          <button type="button" @click="run(A.insertHyperlink)">🔗</button>
-          <button type="button" :class="{ active: markActive('strike_through', 'strikethrough', 'strike') }" @click="run(A.toggleStrike)">S̶</button>
-          <button type="button" @click="run(A.clearStyle)">⌫</button>
+          <button type="button" class="wide" :title="t('ctx.copyAsMarkdown')" @click="run(A.copyAsMarkdown)">
+            <Icon name="copyAsMarkdown" :size="18" />
+            <span>{{ t('ctx.copyAs') }} Markdown</span>
+          </button>
+          <button type="button" class="wide" :title="t('ctx.pasteAs')" @click="run(A.pasteAsPlainText)">
+            <Icon name="pastePlain" :size="18" />
+            <span>{{ t('ctx.pasteAs') }}</span>
+          </button>
         </div>
 
         <div class="ctx-bar">
-          <button type="button" :class="{ active: nodeActive('blockquote') }" @click="run(A.insertBlockquote)">❝</button>
-          <button type="button" :class="{ active: nodeActive('bullet_list') }" @click="run(A.insertUnorderedList)">•</button>
-          <button type="button" :class="{ active: nodeActive('ordered_list') }" @click="run(A.insertOrderedList)">1.</button>
-          <button type="button" :class="{ active: nodeActive('task_list') }" @click="run(A.insertTaskList)">☑</button>
+          <button
+            type="button"
+            :class="{ active: markActive('strong', 'bold') }"
+            :title="t('ctx.bold')"
+            :aria-label="t('ctx.bold')"
+            @click="run(A.toggleBold)"
+          >
+            <Icon name="bold" />
+          </button>
+          <button
+            type="button"
+            :class="{ active: markActive('emphasis', 'em', 'italic') }"
+            :title="t('ctx.italic')"
+            :aria-label="t('ctx.italic')"
+            @click="run(A.toggleItalic)"
+          >
+            <Icon name="italic" />
+          </button>
+          <button
+            type="button"
+            :class="{ active: markActive('code_inline', 'code') }"
+            :title="t('ctx.inlineCode')"
+            :aria-label="t('ctx.inlineCode')"
+            @click="run(A.toggleInlineCode)"
+          >
+            <Icon name="code" />
+          </button>
+          <button type="button" :title="t('ctx.link')" :aria-label="t('ctx.link')" @click="run(A.insertHyperlink)">
+            <Icon name="link" />
+          </button>
+          <button
+            type="button"
+            :class="{ active: markActive('strike_through', 'strikethrough', 'strike') }"
+            :title="t('ctx.strike')"
+            :aria-label="t('ctx.strike')"
+            @click="run(A.toggleStrike)"
+          >
+            <Icon name="strike" />
+          </button>
+          <button
+            type="button"
+            :title="t('ctx.clearFormat')"
+            :aria-label="t('ctx.clearFormat')"
+            @click="run(A.clearStyle)"
+          >
+            <Icon name="clearFormat" />
+          </button>
+        </div>
+
+        <div class="ctx-bar">
+          <button
+            type="button"
+            :class="{ active: nodeActive('blockquote') }"
+            :title="t('ctx.quote')"
+            :aria-label="t('ctx.quote')"
+            @click="run(A.insertBlockquote)"
+          >
+            <Icon name="quote" />
+          </button>
+          <button
+            type="button"
+            :class="{ active: nodeActive('bullet_list') }"
+            :title="t('ctx.bulletList')"
+            :aria-label="t('ctx.bulletList')"
+            @click="run(A.insertUnorderedList)"
+          >
+            <Icon name="bulletList" />
+          </button>
+          <button
+            type="button"
+            :class="{ active: nodeActive('ordered_list') }"
+            :title="t('ctx.orderedList')"
+            :aria-label="t('ctx.orderedList')"
+            @click="run(A.insertOrderedList)"
+          >
+            <Icon name="orderedList" />
+          </button>
+          <button
+            type="button"
+            :class="{ active: nodeActive('task_list') }"
+            :title="t('ctx.taskList')"
+            :aria-label="t('ctx.taskList')"
+            @click="run(A.insertTaskList)"
+          >
+            <Icon name="taskList" />
+          </button>
         </div>
 
         <div class="ctx-sep"></div>
@@ -241,8 +325,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   padding: 2px 0;
 }
 .ctx-bar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-width: 30px;
-  height: 28px;
+  height: 30px;
   padding: 0 6px;
   border: none;
   background: transparent;
@@ -254,7 +342,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 }
 .ctx-bar button.wide {
   flex: 1 1 auto;
+  justify-content: flex-start;
   font-size: 12px;
+  padding: 0 8px;
+  white-space: nowrap;
 }
 .ctx-bar button:hover {
   background: var(--accent-soft);

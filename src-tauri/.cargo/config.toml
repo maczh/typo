@@ -15,9 +15,5 @@
 #   error: expected a string, but found a table for `KEY` in .../.cargo/config.toml
 # If you ever need the table form, use a top-level `[env]` block instead.
 
-<<<<<<< HEAD
 [target.x86_64-unknown-linux-gnu]
-=======
-[target.x86_64-unknown-linux-gnu.env]
->>>>>>> ea2d77eb9a2191be8b4156f43eb10d8985340886
 rustflags = []

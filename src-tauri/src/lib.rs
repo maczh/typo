@@ -18,6 +18,7 @@ pub fn run() {
 
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
             let handle = app.handle();
             let app_state = AppState::new(handle).map_err(|e| e.to_string())?;

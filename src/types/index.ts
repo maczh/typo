@@ -43,11 +43,18 @@ export interface RecentItem {
   openedAt: number
 }
 
+/** How a dropped-in file should be interpreted before it becomes Markdown. */
+export type OpenKind = 'markdown' | 'text' | 'html' | 'docx'
+
 /** Result of opening a file (mirrors Rust `FileResult`). */
 export interface FileResult {
   path: string
   content: string
   name: string
+  /** What the payload is — see `OpenKind`. */
+  kind?: OpenKind
+  /** base64 of the raw bytes for binary formats (DOCX); absent otherwise. */
+  data?: string
 }
 
 /** Result of saving / autosaving a file (mirrors Rust `SaveResult`). */

@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::Path;
 
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::oneshot;
@@ -32,7 +33,14 @@ async fn pick_path(app: &AppHandle, mode: DialogMode, default_name: Option<&str>
     let (tx, rx) = oneshot::channel::<Option<String>>();
     match mode {
         DialogMode::Open => {
-            app.dialog().file().pick_file(move |p| {
+            let mut builder = app.dialog().file();
+            // Filters so HTML / DOCX / Markdown show up directly in the picker.
+            builder = builder
+                .add_filter("Markdown", &["md", "markdown", "txt", "text"])
+                .add_filter("HTML", &["html", "htm"])
+                .add_filter("Word", &["docx"])
+                .add_filter("All Files", &["*"]);
+            builder.pick_file(move |p| {
                 let _ = tx.send(p.map(|x| x.to_string()));
             });
         }
@@ -54,7 +62,22 @@ async fn pick_path(app: &AppHandle, mode: DialogMode, default_name: Option<&str>
     rx.await.ok().flatten()
 }
 
+/// Classify a file by extension into the `kind` the frontend expects.
+fn detect_kind(ext: &str) -> &'static str {
+    match ext {
+        "md" | "markdown" => "markdown",
+        "txt" | "text" => "text",
+        "html" | "htm" => "html",
+        "docx" => "docx",
+        // Unknown extensions are best-effort read as UTF-8 text.
+        _ => "text",
+    }
+}
+
 /// Open a file. When `path` is `None`, a native open dialog is shown.
+///
+/// Markdown/text/HTML are returned as UTF-8 `content`; DOCX is returned as a
+/// base64 `data` blob so the frontend can run mammoth → turndown locally.
 #[tauri::command]
 pub async fn open_file(
     path: Option<String>,
@@ -68,12 +91,27 @@ pub async fn open_file(
         },
     };
 
-    let content = fs::read_to_string(&p).map_err(|e| e.to_string())?;
+    let bytes = fs::read(&p).map_err(|e| e.to_string())?;
     let name = file_name(&p);
+    let ext = Path::new(&p)
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    let kind = detect_kind(&ext);
+
+    let (content, data) = if kind == "docx" {
+        (String::new(), Some(STANDARD.encode(&bytes)))
+    } else {
+        (String::from_utf8_lossy(&bytes).to_string(), None)
+    };
+
     Ok(FileResult {
         path: p,
         name,
         content,
+        kind: kind.to_string(),
+        data,
     })
 }
 
@@ -97,6 +135,8 @@ pub async fn save_file_as(path: String, content: String) -> Result<FileResult, S
         path: path.clone(),
         name: file_name(&path),
         content,
+        kind: String::new(),
+        data: None,
     })
 }
 

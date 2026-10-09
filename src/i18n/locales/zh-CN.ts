@@ -192,6 +192,7 @@ export default {
     copy: '复制',
     paste: '粘贴',
     remove: '删除',
+    copyAsMarkdown: '复制为 Markdown',
     copyAs: '复制为',
     pasteAs: '粘贴为纯文本',
     bold: '加粗',

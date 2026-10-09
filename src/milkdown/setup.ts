@@ -1,10 +1,13 @@
 import { Crepe } from '@milkdown/crepe'
 import type { Editor } from '@milkdown/core'
+import { editorViewCtx } from '@milkdown/core'
+import type { EditorView } from '@milkdown/prose/view'
 import { insert, getHTML as getHTMLCommand } from '@milkdown/utils'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { i18n } from '@/i18n'
 import { mermaidDiagramPlugin } from './plugins/mermaid'
 import { markdownMarkerPlugin } from './plugins/markdownMarker'
+import { htmlToMarkdown } from '@/utils/import'
 
 /** A thin, stable wrapper around a Crepe editor instance. */
 export interface EditorInstance {
@@ -95,6 +98,44 @@ export async function createEditor(
   loading = true
   await (crepe as unknown as { create: () => Promise<void> }).create()
   loading = false
+
+  // Paste with HTML flavour → Markdown. Captured on the container (ancestor of
+  // the editable) in the *capture* phase so it runs before ProseMirror's own
+  // paste handler, letting us replace the default rich-HTML insertion with a
+  // Markdown round-trip. Plain-text paste is left untouched.
+  root.addEventListener(
+    'paste',
+    (e: ClipboardEvent) => {
+      const dt = e.clipboardData
+      if (!dt) return
+      const html = dt.getData('text/html')
+      if (!html || !html.trim()) return // plain text — let the default happen
+      const editor = getCoreEditor(crepe)
+      if (!editor) return
+      // Inside a code block the user wants literal text, not Markdown — bail.
+      let inCode = false
+      editor.action((ctx) => {
+        const view = ctx.get(editorViewCtx) as EditorView
+        const parent = view.state.selection.$from.parent
+        inCode = parent.type.name === 'code_block' || parent.type.name === 'fence'
+      })
+      if (inCode) return
+      e.preventDefault()
+      // Stop the event before it reaches the editable element so ProseMirror's
+      // own paste handler (which would insert the raw HTML) never runs — without
+      // this the converted Markdown would be inserted *and* the original HTML.
+      e.stopPropagation()
+      const md = htmlToMarkdown(html)
+      if (!md) {
+        // Conversion produced nothing useful — fall back to plain text.
+        const text = dt.getData('text/plain')
+        if (text) editor.action(insert(text))
+        return
+      }
+      editor.action(insert(md))
+    },
+    true,
+  )
 
   const getMarkdown = (): Promise<string> | string =>
     crepe ? (crepe as unknown as { getMarkdown: () => Promise<string> }).getMarkdown() : ''

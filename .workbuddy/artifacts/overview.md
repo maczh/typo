@@ -221,3 +221,59 @@ ProseMirror 的 `state.selection` 与真实 DOM 选区脱节：
 工作区内 `.Trash-0/`（378 个文件）被 git 跟踪，是安全删除钩子的残留（node_modules
 旧文件）。清理临时目录时曾误碰，已用 `git checkout -- .Trash-0` 完整恢复，
 当前 `git status` 仅剩本次 config.toml 改动。建议后续将其加入 `.gitignore` 或提交清理。
+
+---
+
+# BUG 续修：截图红框"功能无效" + 第3行倒数第2个图标看不出功能
+
+用户又用截图反馈：行首手柄菜单与右键菜单里红框标出的按钮点了没反应，且第 3 行倒数第 2 个
+图标（旧删除线 `S̶`）渲染成豆腐块、看不出是什么。这一轮是上面菜单修复的收尾。
+
+## 根因（仍与上一轮同源，但有两个独立死点）
+
+1. **剪贴板那排按钮（✂ ⧉ ▤ 🗑）= 死按钮。**
+   - 旧实现用 `document.execCommand('cut'/'copy'/'paste')`。但 `execCommand` 在
+     WebKitGTK（以及 Blink/Gecko）里 `paste` **直接被禁用**，而 `cut`/`copy` 只作用于
+     **聚焦元素的实时 DOM 选区**且不抛错（失败只是返回 `false`）—— 菜单是 Teleport
+     浮层，点击时编辑器已失焦，所以这三下永远是静默的 no-op。
+2. **第3行倒数第2个图标看不出功能 = 旧删除线 `S̶`（带 combining 的 U+0336）。**
+   Deepin/UOS 默认字体栈里没有这个字形 → 渲染成豆腐块。同理，旧 `⌫`/`⧉`/`▤`/`❝`/`•`/`1.`/`☑`
+   也都是"字体有就有、没有就 tofu"的脆弱字形。
+
+## 修复
+
+| 文件 | 改动 |
+| --- | --- |
+| `src/composables/useClipboard.ts`（新增） | 剪贴板抽象：优先 Tauri 官方插件 `@tauri-apps/plugin-clipboard-manager`（`writeText`/`readText`），回退 `navigator.clipboard`，再回退隐藏 textarea + `execCommand('copy')`（仅写）。`isTauri()` 为假时自动走 web 路径 |
+| `src/commands/actions.ts` | 重写 `cut`/`copySelection`/`paste`/`copyAsMarkdown`/`pasteAsPlainText`：`cut` = 读选区文本→写剪贴板→恢复选区并删；`paste` = 读剪贴板后 `insert(text)`（MD 生效）；`pasteAsPlainText` = `insertPlainText` |
+| `src/components/common/icons.ts`（新增） | 17 个 24×24 SVG path（格式化类取自 `@milkdown/crepe` 图标集，剪贴板/插入类按 Material 约定补）。用 `gen_icons.py` 一次性生成（脚本已删） |
+| `src/components/common/Icon.vue`（新增） | `<svg fill=currentColor>`，继承按钮颜色，避免 tofu |
+| `src/components/editor/EditorContextMenu.vue` | 全部按钮换 `<Icon name=.../>`，补 `:title`/`:aria-label`；样式条 6 个：bold/italic/code/link/**strike**/clearFormat，删除线现在是真正的删除线-S 图形 |
+| `src-tauri/Cargo.toml` | 加 `tauri-plugin-clipboard-manager = "2"` |
+| `src-tauri/src/lib.rs` | 加 `.plugin(tauri_plugin_clipboard_manager::init())` |
+| `src-tauri/capabilities/default.json` | 加 `clipboard-manager:default` |
+| `src/i18n/locales/{zh-CN,zh-TW,en}.ts` | 补 `copyAsMarkdown` 等键 |
+
+## 验证
+
+- `vue-tsc --noEmit` ✅ 通过（exit 0）
+- `cargo build --release` ✅ 通过（仅 2 个无害 warning：`recovery.rs:63` 未用变量 `dir`、`state.rs:51` 未被调用的 `cache_dir`）
+- 三语言包 `ctx` 键齐全
+- 交互层（点击/焦点/剪贴板）仍无法在沙箱验证（无头 Chrome 崩），需在桌面端实测
+
+## 你这边怎么验证
+
+前端 `dist/` 仍是旧构建，直接跑旧 release 二进制看不到改动。请重新构建：
+
+```bash
+npm run tauri build          # 前端 + Rust 一起重编（你机器上能跑通 vite build）
+# 或仅重编前端后手动起：npm run build
+./src-tauri/target/release/typo
+```
+
+实测清单：
+- 选中一段文字 → 右键 → 点 B/I/删除线，确认作用到选中文本
+- 行首手柄 → 点"段落"子菜单里的 H2/H3，确认整块变标题
+- 右键 → 剪贴板那排 ✂ ⧉ ▤，确认剪切/复制/粘贴真正生效（之前是死的）
+- 第3行中间那个"删除线"图标现在是清晰的 S 加删除线，不再是豆腐块
+

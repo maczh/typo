@@ -1,11 +1,20 @@
 use serde::{Deserialize, Serialize};
 
 /// Result of opening a file from disk.
+///
+/// `kind` tells the frontend how to interpret the payload:
+///   - `"markdown"` / `"text"`: `content` holds the UTF-8 text (loaded as-is).
+///   - `"html"`: `content` holds the raw HTML (frontend converts to Markdown).
+///   - `"docx"`: `data` holds a base64 of the file bytes (frontend runs
+///     mammoth → turndown to produce Markdown). `content` is empty.
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct FileResult {
     pub path: String,
     pub name: String,
     pub content: String,
+    pub kind: String,
+    pub data: Option<String>,
 }
 
 /// A single entry in the "recent files" list.

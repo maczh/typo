@@ -2,6 +2,7 @@ import type { Editor } from '@milkdown/core'
 import { editorViewCtx } from '@milkdown/core'
 import type { EditorView } from '@milkdown/prose/view'
 import type { Node as PMNode, NodeType, MarkType } from '@milkdown/prose/model'
+import { Fragment, Slice } from '@milkdown/prose/model'
 import type { EditorState, Transaction } from '@milkdown/prose/state'
 import {
   setBlockType,
@@ -202,17 +203,48 @@ export function toggleUnderline(_editor: Editor): boolean {
   return false
 }
 
+/**
+ * Clear inline formatting (and the block's own styling) for the selection.
+ *
+ * With a selection, every mark is stripped from the range and the block is turned
+ * back into a paragraph.
+ *
+ * With a *collapsed* caret there is nothing to strip, so we only reset the pending
+ * marks — clearing the entire document is both destructive and guaranteed to
+ * throw (`Transaction.setBlockType` over a range spanning more than one block
+ * raises `RangeError`, which used to abort the whole transaction and make the
+ * "clear format" button look dead).
+ */
 export function clearFormatting(editor: Editor): void {
   runWithView(editor, (view) => {
     const { state, dispatch } = view
     const { from, to, empty } = state.selection
-    const sel = empty ? { from: 0, to: state.doc.content.size } : { from, to }
+    const paragraph = nodeType(state.schema, 'paragraph')
     const tr = state.tr
-    for (const m of Object.values(state.schema.marks)) {
-      tr.removeMark(sel.from, sel.to, m)
+
+    if (empty) {
+      tr.setStoredMarks([])
+      if (paragraph && state.selection.$from.parent.type.name !== 'paragraph') {
+        try {
+          tr.setBlockType(from, from, paragraph)
+        } catch {
+          /* the caret sits somewhere setBlockType cannot reach (e.g. a table cell) */
+        }
+      }
+      dispatch(tr)
+      return
     }
-    const p = nodeType(state.schema, 'paragraph')
-    if (p) tr.setBlockType(sel.from, sel.to, p)
+
+    for (const m of Object.values(state.schema.marks)) {
+      tr.removeMark(from, to, m)
+    }
+    if (paragraph) {
+      try {
+        tr.setBlockType(from, to, paragraph)
+      } catch {
+        /* non-flat range (e.g. across list items) — the marks are still cleared */
+      }
+    }
     dispatch(tr)
   })
 }
@@ -267,6 +299,89 @@ export function selectAll(editor: Editor): boolean {
 
 export function deleteSelection(editor: Editor): boolean {
   return runCmd(editor, pmDeleteSelection as PMCommand)
+}
+
+/**
+ * Remove the whole top-level block the selection sits in (the block handle's
+ * "delete"). Never leaves an empty document behind.
+ */
+export function deleteBlock(editor: Editor): boolean {
+  let ok = false
+  runWithView(editor, (view) => {
+    const { state, dispatch } = view
+    const doc = state.doc
+    const pos = state.selection.from
+    let start = -1
+    let end = -1
+    // `forEach` walks the doc's direct children with their offsets; the first one
+    // containing the selection is the block we want.
+    doc.forEach((node, offset) => {
+      if (start >= 0) return
+      const nodeEnd = offset + node.nodeSize
+      if (pos >= offset && pos <= nodeEnd) {
+        start = offset
+        end = nodeEnd
+      }
+    })
+    if (start < 0) return
+    const tr = state.tr.delete(start, end)
+    if (tr.doc.childCount === 0) {
+      const p = nodeType(state.schema, 'paragraph')
+      if (p) tr.insert(0, p.create())
+    }
+    dispatch(tr.scrollIntoView())
+    ok = true
+  })
+  return ok
+}
+
+/**
+ * The selected text as plain text (`''` for a collapsed caret).
+ *
+ * This is what the cut/copy buttons put on the clipboard: the visible text, not
+ * the Markdown source, which matches what every other editor does for Ctrl+C.
+ */
+export function getSelectionText(editor: Editor | null): string {
+  if (!editor) return ''
+  let text = ''
+  runWithView(editor, (view) => {
+    const { from, to, empty } = view.state.selection
+    if (empty) return
+    // '\n' between blocks keeps paragraphs on separate lines, and for leaf nodes
+    // (images, hard breaks) so copied text does not run together.
+    text = view.state.doc.textBetween(from, to, '\n', '\n')
+  })
+  return text
+}
+
+/**
+ * Insert literal text at the selection — Markdown syntax in it is **not**
+ * interpreted (this backs "paste as plain text").
+ */
+export function insertPlainText(editor: Editor, text: string): void {
+  if (!text) return
+  runWithView(editor, (view) => {
+    const { state, dispatch } = view
+    const { from, to } = state.selection
+    const normalized = text.replace(/\r\n?/g, '\n')
+    try {
+      if (!normalized.includes('\n')) {
+        dispatch(state.tr.insertText(normalized, from, to).scrollIntoView())
+        return
+      }
+      const paragraph = nodeType(state.schema, 'paragraph')
+      if (!paragraph) throw new Error('no paragraph node in schema')
+      const blocks = normalized
+        .split('\n')
+        .map((line) => paragraph.create(null, line ? state.schema.text(line) : undefined))
+      const slice = new Slice(Fragment.fromArray(blocks), 0, 0)
+      dispatch(state.tr.replaceRange(from, to, slice).scrollIntoView())
+    } catch {
+      // Multi-line paste into a context that cannot hold paragraphs (a heading,
+      // a table cell, a code block) — keep the words, drop the line structure.
+      dispatch(state.tr.insertText(normalized.replace(/\n+/g, ' '), from, to).scrollIntoView())
+    }
+  })
 }
 
 /* ------------------------------------------------------------------ */

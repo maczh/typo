@@ -1,20 +1,19 @@
-# Cargo environment for building the Typo Tauri v2 app inside this sandbox.
+# Cargo config for building the Typo Tauri v2 app on this host.
 #
-# The host's Deepin/UOS apt sources are broken, so the WebKit2GTK / GTK3 / libsoup
-# -dev packages cannot be installed system-wide. Instead their headers + .pc files
-# were extracted into the local sysroot below (see /home/Macro/tauri-dev/), and the
-# real shared libraries are resolved at link/run time from the system /usr/lib.
+# History: an earlier session created a local sysroot (/home/Macro/tauri-dev/sysroot)
+# with extracted Debian bookworm headers, because the Deepin/UOS apt sources were 404
+# and the WebKit2GTK-4.1 / GTK3 / libsoup -dev packages could not be installed.
+# That sysroot no longer exists AND the host now ships the real -dev packages
+# (webkit2gtk-4.1 2.46.3, javascriptcoregtk-4.1, libsoup-3.0 3.4.3, gtk+-3.0 3.24.41),
+# so pkg-config resolves everything from /usr/lib/x86_64-linux-gnu/pkgconfig directly.
+# Nothing needs to be injected here any more.
 #
-# This env block makes `cargo` (and therefore `npm run tauri dev` / `tauri build`)
-# pick up those paths automatically. It is sandbox-specific; remove it on a machine
-# that has the matching -dev packages installed normally.
-#
-# Scoped to the host target so it does NOT leak into cross/other-OS builds
-# (Windows/macOS targets resolve their native libs themselves).
+# IMPORTANT: do NOT put an `[env]` table under `[target.<triple>]`. Cargo only accepts
+# plain `KEY = "value"` strings there. The `{ value = "...", relative = false }` table
+# form is valid ONLY for the top-level `[env]` section; under a target it makes cargo
+# abort with:
+#   error: expected a string, but found a table for `KEY` in .../.cargo/config.toml
+# If you ever need the table form, use a top-level `[env]` block instead.
 
-[target.x86_64-unknown-linux-gnu.env]
-SYSROOT = { value = "/home/Macro/tauri-dev/sysroot", relative = false }
-PKG_CONFIG_PATH = { value = "/home/Macro/tauri-dev/sysroot/usr/lib/x86_64-linux-gnu/pkgconfig:/home/Macro/tauri-dev/sysroot/usr/share/pkgconfig", relative = false }
-LIBCLANG_PATH = { value = "/home/Macro/tauri-dev/sysroot/usr/lib/llvm-14/lib", relative = false }
-BINDGEN_EXTRA_CLANG_ARGS = { value = "--sysroot=/home/Macro/tauri-dev/sysroot", relative = false }
-LIBRARY_PATH = { value = "/usr/lib/x86_64-linux-gnu", relative = false }
+[target.x86_64-unknown-linux-gnu]
+rustflags = []

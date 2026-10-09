@@ -210,6 +210,23 @@ export function selectAll(): void {
   withEditor((e) => prose.selectAll(e))
 }
 
+/**
+ * Re-apply `from`/`to` and give the editor focus back.
+ *
+ * Floating menus (block handle, right-click) live outside the editor DOM, so the
+ * click that triggers an item leaves ProseMirror's `state.selection` and the real
+ * DOM selection out of sync. Every menu item must call this first — otherwise the
+ * command applies to the wrong place, and clipboard actions (`execCommand`) do
+ * nothing at all because they operate on the live DOM selection.
+ */
+export function restoreSelection(from: number, to: number): void {
+  withEditor((e) => prose.setSelectionRange(e, from, to))
+}
+
+export function focusEditor(): void {
+  withEditor((e) => prose.focus(e))
+}
+
 export function deleteSelection(): void {
   withEditor((e) => prose.deleteSelection(e))
 }

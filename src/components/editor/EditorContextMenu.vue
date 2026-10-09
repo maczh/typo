@@ -27,8 +27,20 @@ const style = computed(() => {
   return { left: `${left}px`, top: `${top}px` }
 })
 
+/**
+ * Run a menu action.
+ *
+ * Order matters: the menu is a `Teleport`ed overlay, so before dispatching
+ * anything we hand the captured range *and* keyboard focus back to the editor.
+ * Without this the ProseMirror selection has drifted away from the DOM selection
+ * and commands silently no-op (clipboard items are the most obvious casualty,
+ * since `document.execCommand` works on the live DOM selection).
+ */
 function run(fn?: () => void | Promise<void>): void {
+  const r = menu.range.value
   menu.hide()
+  if (r) A.restoreSelection(r.from, r.to)
+  else A.focusEditor()
   if (fn) void fn()
 }
 
@@ -120,7 +132,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 <template>
   <Teleport to="body">
     <div v-if="menu.open.value" class="ctx-layer" @pointerdown="menu.hide()" @contextmenu.prevent>
-      <div class="ctx-menu" :style="style" @pointerdown.stop.prevent @contextmenu.prevent>
+      <!-- `.prevent` on both pointerdown and mousedown keeps the editor from
+           losing focus/selection while the menu is being clicked. -->
+      <div
+        class="ctx-menu"
+        :style="style"
+        @pointerdown.stop.prevent
+        @mousedown.stop.prevent
+        @contextmenu.prevent
+      >
         <!-- clipboard -->
         <div class="ctx-bar">
           <button type="button" :title="t('ctx.cut')" @click="run(A.cut)">✂</button>

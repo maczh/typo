@@ -7,7 +7,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { useUI } from '@/composables/useUI'
 import { useSourceMode } from '@/composables/useSourceMode'
 import { buildOutlineFromMarkdown } from '@/utils/outline'
-import { blockKindAt, posAtCoords, setCaret } from '@/commands/prose'
+import { blockKindAt, posAtCoords, setCaret, getSelectionRange } from '@/commands/prose'
 import { useEditorMenu } from '@/composables/useEditorMenu'
 import ImageHandler from './ImageHandler.vue'
 import TableToolbar from './TableToolbar.vue'
@@ -83,6 +83,11 @@ async function handleChange(md: string): Promise<void> {
 /**
  * Right-click inside the editor → open the context menu with a set of actions
  * that depends on what the caret is on (table vs. paragraph vs. list vs. code…).
+ *
+ * An existing (non-empty) text selection is deliberately left alone when the
+ * click lands inside it, so styling actions apply to the *selected text* rather
+ * than to a collapsed caret. Clicking outside the selection still moves the
+ * caret, as in any other editor.
  */
 function onContextMenu(e: MouseEvent): void {
   const editor = milkdown.getEditor()
@@ -93,8 +98,17 @@ function onContextMenu(e: MouseEvent): void {
   if (pos == null) return
   e.preventDefault()
   e.stopPropagation()
-  setCaret(editor, pos)
-  editorMenu.show(e.clientX, e.clientY, blockKindAt(editor, pos))
+
+  const current = getSelectionRange(editor)
+  const insideSelection =
+    current != null && !current.empty && pos >= current.from && pos <= current.to
+  if (!insideSelection) setCaret(editor, pos)
+
+  const sel = getSelectionRange(editor)
+  editorMenu.show(e.clientX, e.clientY, blockKindAt(editor, pos), {
+    from: sel?.from ?? pos,
+    to: sel?.to ?? pos,
+  })
 }
 
 /**
@@ -132,7 +146,13 @@ function onHandlePointerUp(e: PointerEvent): void {
   const pos = posAtCoords(editor, { left: rect.right + 8, top: rect.top + rect.height / 2 })
   if (pos == null) return
   setCaret(editor, pos)
-  editorMenu.show(rect.right + 6, rect.top - 4, blockKindAt(editor, pos))
+  // Remember the range: the handle lives outside the editor DOM, so the click on
+  // a menu item would otherwise run against a stale/empty selection.
+  const sel = getSelectionRange(editor)
+  editorMenu.show(rect.right + 6, rect.top - 4, blockKindAt(editor, pos), {
+    from: sel?.from ?? pos,
+    to: sel?.to ?? pos,
+  })
 }
 
 onMounted(async () => {

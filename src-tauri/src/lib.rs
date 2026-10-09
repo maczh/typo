@@ -1,6 +1,8 @@
 mod commands;
 mod models;
 mod state;
+#[cfg(target_os = "linux")]
+mod webview;
 
 use tauri::Manager;
 
@@ -8,6 +10,12 @@ use state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Must run before any webview (and therefore any WebKitWebProcess) is
+    // created, since the renderer choice is read from the environment at that
+    // point.
+    #[cfg(target_os = "linux")]
+    webview::apply_dmabuf_workaround();
+
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {

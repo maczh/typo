@@ -11,10 +11,17 @@ import type { BlockKind } from '@/commands/prose'
  */
 export type MenuKind = BlockKind
 
+/** The document range the menu's actions should apply to. */
+export interface MenuRange {
+  from: number
+  to: number
+}
+
 const open = ref(false)
 const x = ref(0)
 const y = ref(0)
 const kind = ref<MenuKind>('paragraph')
+const range = ref<MenuRange | null>(null)
 
 export function useEditorMenu() {
   return {
@@ -22,10 +29,12 @@ export function useEditorMenu() {
     x,
     y,
     kind,
-    show(px: number, py: number, k: MenuKind = 'paragraph'): void {
+    range,
+    show(px: number, py: number, k: MenuKind = 'paragraph', r: MenuRange | null = null): void {
       x.value = px
       y.value = py
       kind.value = k
+      range.value = r
       open.value = true
     },
     hide(): void {

@@ -396,3 +396,58 @@ export function setCaret(editor: Editor, pos: number): void {
     }
   })
 }
+
+export interface SelectionRange {
+  from: number
+  to: number
+  empty: boolean
+}
+
+/** The editor's current selection — used to decide whether a right-click should
+ *  preserve an existing text selection instead of collapsing it. */
+export function getSelectionRange(editor: Editor | null): SelectionRange | null {
+  if (!editor) return null
+  let range: SelectionRange | null = null
+  runWithView(editor, (view) => {
+    const { from, to, empty } = view.state.selection
+    range = { from, to, empty }
+  })
+  return range
+}
+
+/**
+ * Re-apply a document range **and hand focus back to the editor**.
+ *
+ * This is what makes floating-menu items actually work. A menu rendered via
+ * `Teleport` lives outside the editor DOM, so by the time an item is clicked
+ * ProseMirror no longer owns the DOM selection: `view.state.selection` and the
+ * real selection have drifted apart, commands silently apply to the wrong place
+ * (or nowhere), and `document.execCommand('cut'/'copy')` — which operates on the
+ * live DOM selection — does nothing at all.
+ *
+ * Restoring the range and calling `view.focus()` re-syncs the two before the
+ * command runs.
+ */
+export function setSelectionRange(editor: Editor | null, from: number, to: number): void {
+  if (!editor) return
+  runWithView(editor, (view) => {
+    const max = view.state.doc.content.size
+    const a = Math.max(0, Math.min(from, max))
+    const b = Math.max(0, Math.min(to, max))
+    try {
+      const sel = TextSelection.between(view.state.doc.resolve(a), view.state.doc.resolve(b))
+      view.dispatch(view.state.tr.setSelection(sel))
+    } catch {
+      /* the range moved out of bounds between opening the menu and the click */
+    }
+    view.focus()
+  })
+}
+
+/** Give the editor keyboard focus back (DOM selection follows the last state). */
+export function focus(editor: Editor | null): void {
+  if (!editor) return
+  runWithView(editor, (view) => {
+    view.focus()
+  })
+}

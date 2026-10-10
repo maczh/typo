@@ -22,6 +22,7 @@ import {
 } from '@/milkdown/plugins/table'
 import { insertMath } from '@/milkdown/plugins/latex'
 import { insertDiagram } from '@/milkdown/plugins/mermaid'
+import { findTemplate } from '@/milkdown/plugins/mermaidTemplates'
 import { insertImage } from '@/milkdown/plugins/image'
 import { insert } from '@milkdown/utils'
 import { dirname, nativeJoin } from '@/utils/file'
@@ -473,7 +474,12 @@ export function insertYamlFrontMatter(): void {
 }
 
 export function insertDiagramBlock(): void {
-  withEditor((e) => insertDiagram(e, 'graph TD;\n  A-->B;'))
+  withEditor((e) => insertDiagram(e, findTemplate('flowchart').code))
+}
+
+/** Insert an example ```` ```mermaid ```` block for the chosen diagram type. */
+export function insertDiagramTemplate(id: string): void {
+  withEditor((e) => insertDiagram(e, findTemplate(id).code))
 }
 
 /* ---------------------------- format ---------------------------- */

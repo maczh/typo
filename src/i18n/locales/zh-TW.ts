@@ -209,6 +209,17 @@ export default {
     mermaidInvalid: '圖表語法有誤，請檢查原始碼',
     mermaidHint: '點擊圖表可編輯原始碼',
   },
+  diagram: {
+    title: '插入圖表',
+    flowchart: '流程圖',
+    sequence: '時序圖',
+    class: '類別圖',
+    state: '狀態圖',
+    er: '實體關聯圖',
+    gantt: '甘特圖',
+    pie: '圓餅圖',
+    journey: '旅程圖',
+  },
   find: {
     placeholder: '尋找…',
     matchCase: '區分大小寫',

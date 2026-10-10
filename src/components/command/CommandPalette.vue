@@ -11,6 +11,7 @@ import * as A from '@/commands/actions'
 import { exportDocument } from '@/utils/exporter'
 import { insertMath } from '@/milkdown/plugins/latex'
 import { insertDiagram } from '@/milkdown/plugins/mermaid'
+import { findTemplate } from '@/milkdown/plugins/mermaidTemplates'
 import { insertImage } from '@/milkdown/plugins/image'
 import { insertTable } from '@/milkdown/plugins/table'
 import type { ExportFormat, Lang } from '@/types'
@@ -136,7 +137,7 @@ const cmds: Cmd[] = [
     labelKey: 'menu.insertDiagram',
     run: () => {
       const e = milkdown.getEditor()
-      if (e) insertDiagram(e, 'graph TD;\n  A-->B;')
+      if (e) insertDiagram(e, findTemplate('flowchart').code)
     },
   },
   { id: 'settings', labelKey: 'menu.preferences', run: () => ui.openSettings() },

@@ -209,6 +209,17 @@ export default {
     mermaidInvalid: '图表语法有误，请检查源码',
     mermaidHint: '点击图表可编辑源码',
   },
+  diagram: {
+    title: '插入图表',
+    flowchart: '流程图',
+    sequence: '时序图',
+    class: '类图',
+    state: '状态图',
+    er: '实体关系图',
+    gantt: '甘特图',
+    pie: '饼图',
+    journey: '旅程图',
+  },
   find: {
     placeholder: '查找…',
     matchCase: '区分大小写',

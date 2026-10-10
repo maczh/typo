@@ -2,6 +2,7 @@
 import { reactive, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as A from '@/commands/actions'
+import { MERMAID_TEMPLATES } from '@/milkdown/plugins/mermaidTemplates'
 
 const { t } = useI18n()
 
@@ -50,12 +51,40 @@ function onSelectionChange(): void {
   refresh()
 }
 
+/* ------------------------------------------------------------------ *
+ * Mermaid diagram dropdown
+ * ------------------------------------------------------------------ */
+const diagramOpen = ref(false)
+
+function toggleDiagram(): void {
+  diagramOpen.value = !diagramOpen.value
+}
+
+function chooseDiagram(id: string): void {
+  A.insertDiagramTemplate(id)
+  diagramOpen.value = false
+}
+
+function onDocPointerDown(): void {
+  // Inside clicks are stopped at the dropdown container, so reaching here means
+  // the user clicked elsewhere — collapse the popover.
+  diagramOpen.value = false
+}
+
+function onKey(e: KeyboardEvent): void {
+  if (e.key === 'Escape' && diagramOpen.value) diagramOpen.value = false
+}
+
 onMounted(() => {
   document.addEventListener('selectionchange', onSelectionChange)
+  document.addEventListener('mousedown', onDocPointerDown)
+  document.addEventListener('keydown', onKey)
   refresh()
 })
 onBeforeUnmount(() => {
   document.removeEventListener('selectionchange', onSelectionChange)
+  document.removeEventListener('mousedown', onDocPointerDown)
+  document.removeEventListener('keydown', onKey)
 })
 
 const blockValue = ref('paragraph')
@@ -122,16 +151,37 @@ const blockBtns: ToolBtn[] = [
 
     <span class="sep"></span>
 
-    <button
-      v-for="b in blockBtns"
-      :key="b.key"
-      class="tb-btn"
-      :class="{ active: b.isActive?.() }"
-      :title="`${t('toolbar.' + b.key)} (${b.title})`"
-      @click="b.run()"
-    >
-      {{ b.key === 'quote' ? '❝' : b.key === 'bullet' ? '•' : b.key === 'ordered' ? '1.' : b.key === 'task' ? '☑' : b.key === 'table' ? '▦' : b.key === 'codeblock' ? '⤞' : b.key === 'math' ? '∑' : b.key === 'diagram' ? '📊' : b.key === 'image' ? '🖼' : b.key === 'source' ? '⟨/⟩' : '' }}
-    </button>
+    <template v-for="b in blockBtns" :key="b.key">
+      <span v-if="b.key === 'diagram'" class="tb-dropdown" @mousedown.stop>
+        <button
+          class="tb-btn"
+          :class="{ active: diagramOpen }"
+          :title="`${t('toolbar.diagram')} (Mermaid)`"
+          @click="toggleDiagram"
+        >📊</button>
+        <div v-if="diagramOpen" class="tb-menu">
+          <button
+            v-for="d in MERMAID_TEMPLATES"
+            :key="d.id"
+            class="tb-menu-item"
+            type="button"
+            @click="chooseDiagram(d.id)"
+          >
+            <span class="tb-menu-icon">{{ d.icon }}</span>
+            <span class="tb-menu-label">{{ t(d.labelKey) }}</span>
+          </button>
+        </div>
+      </span>
+      <button
+        v-else
+        class="tb-btn"
+        :class="{ active: b.isActive?.() }"
+        :title="`${t('toolbar.' + b.key)} (${b.title})`"
+        @click="b.run()"
+      >
+        {{ b.key === 'quote' ? '❝' : b.key === 'bullet' ? '•' : b.key === 'ordered' ? '1.' : b.key === 'task' ? '☑' : b.key === 'table' ? '▦' : b.key === 'codeblock' ? '⤞' : b.key === 'math' ? '∑' : b.key === 'image' ? '🖼' : b.key === 'source' ? '⟨/⟩' : '' }}
+      </button>
+    </template>
   </div>
 </template>
 
@@ -181,5 +231,47 @@ const blockBtns: ToolBtn[] = [
   height: 20px;
   background: var(--border);
   margin: 0 4px;
+}
+.tb-dropdown {
+  position: relative;
+  display: inline-block;
+}
+.tb-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 180px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 4px;
+  z-index: 500;
+  user-select: none;
+}
+.tb-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+}
+.tb-menu-item:hover {
+  background: var(--accent-soft);
+}
+.tb-menu-icon {
+  width: 18px;
+  text-align: center;
+  flex: 0 0 auto;
+}
+.tb-menu-label {
+  flex: 1 1 auto;
 }
 </style>

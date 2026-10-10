@@ -209,6 +209,17 @@ export default {
     mermaidInvalid: 'Invalid diagram syntax, please check the source',
     mermaidHint: 'Click the diagram to edit its source',
   },
+  diagram: {
+    title: 'Insert Diagram',
+    flowchart: 'Flowchart',
+    sequence: 'Sequence',
+    class: 'Class',
+    state: 'State',
+    er: 'ER Diagram',
+    gantt: 'Gantt',
+    pie: 'Pie',
+    journey: 'Journey',
+  },
   find: {
     placeholder: 'Find…',
     matchCase: 'Match Case',

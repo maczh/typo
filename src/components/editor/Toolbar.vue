@@ -2,6 +2,7 @@
 import { reactive, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as A from '@/commands/actions'
+import { hk } from '@/composables/useHotkeys'
 import { MERMAID_TEMPLATES } from '@/milkdown/plugins/mermaidTemplates'
 
 const { t } = useI18n()
@@ -34,7 +35,7 @@ function refresh(): void {
     active.bold = A.markActive('strong', 'bold')
     active.italic = A.markActive('emphasis', 'em', 'italic')
     active.strike = A.markActive('strike_through', 'strikethrough', 'strike')
-    active.code = A.markActive('code_inline', 'code')
+    active.code = A.markActive('inlineCode')
     ;(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const).forEach((k, idx) => {
       active[k] = A.nodeActive('heading', { level: idx + 1 })
     })
@@ -106,8 +107,8 @@ const inlineBtns: ToolBtn[] = [
   { key: 'italic', title: 'Ctrl+I', run: A.toggleItalic, isActive: () => active.italic },
   { key: 'underline', title: 'Ctrl+U', run: A.toggleUnderline },
   { key: 'strike', title: 'Alt+Shift+5', run: A.toggleStrike, isActive: () => active.strike },
-  { key: 'code', title: 'Ctrl+Shift+`', run: A.toggleInlineCode, isActive: () => active.code },
-  { key: 'link', title: 'Ctrl+K', run: A.insertHyperlink },
+  { key: 'code', title: hk('inlineCode'), run: A.toggleInlineCode, isActive: () => active.code },
+  { key: 'link', title: hk('link'), run: A.insertHyperlink },
 ]
 
 const blockBtns: ToolBtn[] = [

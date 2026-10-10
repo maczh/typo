@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as A from '@/commands/actions'
 import { useEditorMenu } from '@/composables/useEditorMenu'
+import { hk } from '@/composables/useHotkeys'
 import Icon from '@/components/common/Icon.vue'
 
 /**
@@ -68,12 +69,12 @@ interface Item {
 
 const paragraphItems = computed<Item[]>(() => {
   const items: Item[] = [
-    { label: t('ctx.text'), shortcut: 'Ctrl+0', run: A.setParagraph, checked: isPara },
+    { label: t('ctx.text'), shortcut: hk('paragraph'), run: A.setParagraph, checked: isPara },
   ]
   for (let i = 1; i <= 6; i += 1) {
     items.push({
       label: t(`ctx.h${i}`),
-      shortcut: `Ctrl+${i}`,
+      shortcut: hk(`h${i}`),
       run: () => A.setHeading(i),
       checked: () => isHeading(i),
     })
@@ -82,13 +83,13 @@ const paragraphItems = computed<Item[]>(() => {
 })
 
 const insertItems = computed<Item[]>(() => [
-  { label: t('ctx.image'), shortcut: 'Ctrl+Shift+I', run: A.insertLocalImage },
+  { label: t('ctx.image'), shortcut: hk('insertLocalImage'), run: A.insertLocalImage },
   { label: t('ctx.footnote'), run: A.insertFootnote },
   { label: t('ctx.linkRef'), run: A.insertLinkReference },
   { label: t('ctx.horizontalRule'), run: A.insertHorizontalRule },
-  { label: t('ctx.table'), shortcut: 'Ctrl+T', run: A.insertTable },
-  { label: t('ctx.codeBlock'), shortcut: 'Ctrl+Shift+K', run: A.insertCodeBlock },
-  { label: t('ctx.mathBlock'), shortcut: 'Ctrl+Shift+M', run: A.insertMathBlock },
+  { label: t('ctx.table'), shortcut: hk('insertTable'), run: A.insertTable },
+  { label: t('ctx.codeBlock'), shortcut: hk('codeBlock'), run: A.insertCodeBlock },
+  { label: t('ctx.mathBlock'), shortcut: hk('mathBlock'), run: A.insertMathBlock },
   { label: t('ctx.toc'), run: A.insertToc },
   { label: t('ctx.yaml'), run: A.insertYamlFrontMatter },
   { sep: true },
@@ -98,16 +99,16 @@ const insertItems = computed<Item[]>(() => [
 
 const tableItems = computed<Item[]>(() => [
   { label: t('ctx.rowAbove'), run: A.tableRowAbove },
-  { label: t('ctx.rowBelow'), shortcut: 'Ctrl+Enter', run: A.tableRowBelow },
+  { label: t('ctx.rowBelow'), shortcut: hk('table-row-below'), run: A.tableRowBelow },
   { label: t('ctx.colLeft'), run: A.tableColLeft },
   { label: t('ctx.colRight'), run: A.tableColRight },
   { sep: true },
-  { label: t('ctx.moveRowUp'), shortcut: 'Alt+↑', run: A.tableMoveRowUp },
-  { label: t('ctx.moveRowDown'), shortcut: 'Alt+↓', run: A.tableMoveRowDown },
-  { label: t('ctx.moveColLeft'), shortcut: 'Alt+←', run: A.tableMoveColLeft },
-  { label: t('ctx.moveColRight'), shortcut: 'Alt+→', run: A.tableMoveColRight },
+  { label: t('ctx.moveRowUp'), shortcut: hk('table-move-row-up'), run: A.tableMoveRowUp },
+  { label: t('ctx.moveRowDown'), shortcut: hk('table-move-row-down'), run: A.tableMoveRowDown },
+  { label: t('ctx.moveColLeft'), shortcut: hk('table-move-col-left'), run: A.tableMoveColLeft },
+  { label: t('ctx.moveColRight'), shortcut: hk('table-move-col-right'), run: A.tableMoveColRight },
   { sep: true },
-  { label: t('ctx.deleteRow'), shortcut: 'Ctrl+Shift+⌫', run: A.tableDeleteRow },
+  { label: t('ctx.deleteRow'), shortcut: hk('table-del-row'), run: A.tableDeleteRow },
   { label: t('ctx.deleteCol'), run: A.tableDeleteCol },
   { sep: true },
   { label: t('ctx.copyTable'), run: A.tableCopy },
@@ -190,7 +191,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           </button>
           <button
             type="button"
-            :class="{ active: markActive('code_inline', 'code') }"
+            :class="{ active: markActive('inlineCode') }"
             :title="t('ctx.inlineCode')"
             :aria-label="t('ctx.inlineCode')"
             @click="run(A.toggleInlineCode)"

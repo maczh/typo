@@ -156,6 +156,15 @@ export default {
   dialog: {
     settings: {
       title: '設定',
+      general: '通用',
+      hotkeys: '熱鍵管理',
+      hotkeyHint: '點擊「重新綁定」後按下新的快捷鍵組合；按 Esc 取消。修改會即時在選單與全域生效，並儲存到本機。',
+      rebind: '重新綁定',
+      reset: '恢復預設',
+      resetAll: '全部恢復預設',
+      capturing: '請按下新的快捷鍵…',
+      conflict: '與「{name}」衝突',
+      noShortcut: '未設定',
       theme: '主題',
       language: '語言',
       fontSize: '字號',
@@ -243,7 +252,6 @@ export default {
     success: '已匯出',
     fail: '匯出失敗',
     html: 'HTML',
-    word: 'Word',
     pdf: 'PDF',
     markdown: 'Markdown',
   },

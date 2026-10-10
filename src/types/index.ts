@@ -71,6 +71,18 @@ export interface RecoveryItem {
   saved_at: number
 }
 
+/** A single hotkey binding (layout-independent; `code` preferred for keys whose
+ *  `key` changes with Shift, e.g. Backquote `→ ~`). */
+export interface HotkeySpec {
+  ctrl?: boolean
+  shift?: boolean
+  alt?: boolean
+  /** Normalized key, lowercased (e.g. 'b', '1', 'enter', 'f8', 'backquote'). */
+  key?: string
+  /** Physical key code (e.g. 'Backquote') for layout-independent matching. */
+  code?: string
+}
+
 /** Editor / appearance settings (persisted via the Rust `settings` command). */
 export interface Settings {
   theme: string
@@ -84,6 +96,9 @@ export interface Settings {
   /** WYSIWYG content column width, as a percentage of the editor pane. */
   contentWidth: number
   customCss: string
+  /** Per-command hotkey overrides, keyed by command id. Missing ids fall back
+   *  to the built-in defaults. */
+  hotkeys?: Record<string, HotkeySpec>
 }
 
 /** A selectable theme definition. */
@@ -111,4 +126,4 @@ export interface CommandItem {
 }
 
 /** Supported export formats. */
-export type ExportFormat = 'markdown' | 'html' | 'docx' | 'pdf'
+export type ExportFormat = 'markdown' | 'html' | 'pdf'

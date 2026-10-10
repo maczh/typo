@@ -1,7 +1,6 @@
 import type { ExportFormat } from '@/types'
 import { toMarkdown } from './toMarkdown'
 import { toHtml } from './toHtml'
-import { toDocx } from './toDocx'
 import { toPdf } from './toPdf'
 import { useTauri } from '@/composables/useTauri'
 import { showToast } from '@/utils/toast'
@@ -21,7 +20,7 @@ export function downloadBlob(blob: Blob, filename: string): void {
 /**
  * Export the current document to the requested format. Text formats (md/html) are
  * written through the Rust `save_file_as` command after a native save dialog;
- * docx is downloaded as a blob; pdf triggers the print dialog.
+ * pdf triggers the print dialog.
  */
 export async function exportDocument(
   markdown: string,
@@ -38,9 +37,6 @@ export async function exportDocument(
       const content = await toHtml(markdown, baseName)
       const path = await tauri.pickSave(`${baseName}.html`)
       if (path) await tauri.saveFileAs(path, content)
-    } else if (format === 'docx') {
-      const blob = await toDocx(markdown, baseName)
-      downloadBlob(blob, `${baseName}.docx`)
     } else if (format === 'pdf') {
       const html = await toHtml(markdown, baseName)
       await toPdf(html)
@@ -51,4 +47,4 @@ export async function exportDocument(
   }
 }
 
-export { toMarkdown, toHtml, toDocx, toPdf }
+export { toMarkdown, toHtml, toPdf }

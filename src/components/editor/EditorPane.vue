@@ -27,7 +27,7 @@ const editorMenu = useEditorMenu()
 /** Content column bounds, in percent of the editor pane width. */
 const MIN_WIDTH = 30
 const MAX_WIDTH = 100
-const DEFAULT_WIDTH = 70
+const DEFAULT_WIDTH = 80
 const dragging = ref(false)
 
 function clampWidth(pct: number): number {

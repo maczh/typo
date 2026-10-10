@@ -156,6 +156,15 @@ export default {
   dialog: {
     settings: {
       title: '设置',
+      general: '通用',
+      hotkeys: '热键管理',
+      hotkeyHint: '点击“重新绑定”后按下新的快捷键组合；按 Esc 取消。修改即时在菜单与全局生效，并保存到本地。',
+      rebind: '重新绑定',
+      reset: '恢复默认',
+      resetAll: '全部恢复默认',
+      capturing: '请按下新的快捷键…',
+      conflict: '与“{name}”冲突',
+      noShortcut: '未设置',
       theme: '主题',
       language: '语言',
       fontSize: '字号',
@@ -243,7 +252,6 @@ export default {
     success: '已导出',
     fail: '导出失败',
     html: 'HTML',
-    word: 'Word',
     pdf: 'PDF',
     markdown: 'Markdown',
   },

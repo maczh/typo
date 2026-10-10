@@ -167,7 +167,7 @@ export function revealFileInFolder(): void {
   showToast('打开文件位置需要桌面运行时支持，v1 暂未开放', 'info')
 }
 
-export async function exportAs(format: 'markdown' | 'html' | 'docx' | 'pdf'): Promise<void> {
+export async function exportAs(format: 'markdown' | 'html' | 'pdf'): Promise<void> {
   const md = await getMarkdown()
   const base = (useEditorStore().doc.name || 'untitled').replace(/\.md$/i, '')
   await exportDocument(md, format, base || 'untitled')
@@ -503,7 +503,15 @@ export function toggleUnderline(): void {
 }
 
 export function toggleInlineCode(): void {
-  withEditor((e) => prose.toggleInlineCode(e))
+  withEditor((e) => {
+    // A click in the top toolbar / format menu blurs the editor; re-apply the
+    // captured selection and hand focus back so the mark toggles on the *selected*
+    // text (the floating/context menu already does this via restoreSelection — we
+    // mirror it here so every surface behaves identically).
+    const range = prose.getSelectionRange(e)
+    if (range && !range.empty) prose.setSelectionRange(e, range.from, range.to)
+    prose.toggleInlineCode(e)
+  })
 }
 
 export function toggleStrike(): void {
@@ -517,7 +525,14 @@ export function insertComment(): void {
 }
 
 export function insertHyperlink(): void {
-  withEditor((e) => prose.insertLink(e))
+  withEditor((e) => {
+    // Preserve the current selection across the click that opened the toolbar /
+    // menu (the editor blurs), then add the link to the selected text instead of
+    // replacing it with a placeholder.
+    const range = prose.getSelectionRange(e)
+    if (range && !range.empty) prose.setSelectionRange(e, range.from, range.to)
+    prose.insertLink(e)
+  })
 }
 
 export function insertLocalImage(): void {

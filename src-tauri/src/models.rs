@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Result of opening a file from disk.
 ///
@@ -36,6 +37,23 @@ pub struct FileItem {
     pub children: Option<Vec<FileItem>>,
 }
 
+/// A single hotkey binding. `code` is the physical key code (layout-independent);
+/// `key` is the normalized key. Both may be absent for display-only bindings.
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct HotkeySpec {
+    #[serde(default)]
+    pub ctrl: bool,
+    #[serde(default)]
+    pub shift: bool,
+    #[serde(default)]
+    pub alt: bool,
+    #[serde(default)]
+    pub key: Option<String>,
+    #[serde(default)]
+    pub code: Option<String>,
+}
+
 /// Persisted editor settings.
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -48,7 +66,13 @@ pub struct Settings {
     pub auto_save: bool,
     pub auto_save_interval: u64,
     pub mode: String,
+    #[serde(default)]
+    pub content_width: f64,
     pub custom_css: String,
+    /// Per-command hotkey overrides, keyed by command id. Absent ids fall back to
+    /// the front-end built-in defaults.
+    #[serde(default)]
+    pub hotkeys: Option<HashMap<String, HotkeySpec>>,
 }
 
 impl Default for Settings {
@@ -62,7 +86,9 @@ impl Default for Settings {
             auto_save: true,
             auto_save_interval: 30_000,
             mode: "normal".to_string(),
+            content_width: 80.0,
             custom_css: String::new(),
+            hotkeys: None,
         }
     }
 }

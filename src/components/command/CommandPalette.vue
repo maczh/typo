@@ -72,7 +72,6 @@ const cmds: Cmd[] = [
   { id: 'saveAs', labelKey: 'menu.saveAs', run: saveAs },
   { id: 'export-md', labelKey: 'export.markdown', run: () => doExport('markdown') },
   { id: 'export-html', labelKey: 'export.html', run: () => doExport('html') },
-  { id: 'export-docx', labelKey: 'export.word', run: () => doExport('docx') },
   { id: 'export-pdf', labelKey: 'export.pdf', run: () => doExport('pdf') },
   { id: 'toggleSidebar', labelKey: 'menu.toggleSidebar', run: () => ui.toggleSidebar() },
   { id: 'toggleOutline', labelKey: 'menu.toggleOutline', run: () => ui.toggleOutline() },

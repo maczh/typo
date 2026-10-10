@@ -13,8 +13,9 @@ const defaultSettings: Settings = {
   autoSave: true,
   autoSaveInterval: 30000,
   mode: 'normal',
-  contentWidth: 70,
+  contentWidth: 80,
   customCss: '',
+  hotkeys: {},
 }
 
 const themes: ThemeDef[] = [

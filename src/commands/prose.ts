@@ -1,5 +1,6 @@
 import type { Editor } from '@milkdown/core'
-import { editorViewCtx } from '@milkdown/core'
+import { commandsCtx, editorViewCtx } from '@milkdown/core'
+import { toggleInlineCodeCommand } from '@milkdown/preset-commonmark'
 import type { EditorView } from '@milkdown/prose/view'
 import type { Node as PMNode, NodeType, MarkType } from '@milkdown/prose/model'
 import { Fragment, Slice } from '@milkdown/prose/model'
@@ -312,8 +313,19 @@ export function toggleItalic(editor: Editor): boolean {
   return toggleMarkBy(editor, 'emphasis', 'em', 'italic')
 }
 
+/**
+ * Toggle inline code via Milkdown's own `toggleInlineCodeCommand` — the exact
+ * same command Crepe's floating toolbar uses. (The inline-code mark is named
+ * `inlineCode` in the schema; guessing `code_inline` here used to make every
+ * custom surface — toolbar, format menu, context menu, hotkey — silently no-op
+ * while the Crepe bubble kept working.)
+ */
 export function toggleInlineCode(editor: Editor): boolean {
-  return toggleMarkBy(editor, 'code_inline', 'code')
+  let ok = false
+  editor.action((ctx) => {
+    ok = ctx.get(commandsCtx).call(toggleInlineCodeCommand.key)
+  })
+  return ok
 }
 
 export function toggleStrike(editor: Editor): boolean {
@@ -455,8 +467,28 @@ export function insertHorizontalRule(editor: Editor): void {
   editor.action(insert('\n---\n\n'))
 }
 
+/**
+ * Insert / apply a hyperlink.
+ *
+ * - With a non-empty selection: keep the selected text and just add the link
+ *   mark to it (the previous behaviour replaced the selection with a placeholder,
+ *   discarding the user's text).
+ * - With a collapsed caret: insert a `链接文本` link placeholder so the user can
+ *   edit it inline.
+ */
 export function insertLink(editor: Editor, text = '链接文本', url = 'https://'): void {
-  editor.action(insert(`[${text}](${url})`))
+  runWithView(editor, (view) => {
+    const linkType = markType(view.state.schema, 'link')
+    if (!linkType) return
+    const { state, dispatch } = view
+    const { from, to, empty } = state.selection
+    if (empty) {
+      const node = state.schema.text(text, [linkType.create({ href: url })])
+      dispatch(state.tr.replaceSelectionWith(node, false).scrollIntoView())
+      return
+    }
+    dispatch(state.tr.addMark(from, to, linkType.create({ href: url })).scrollIntoView())
+  })
 }
 
 export function insertFootnote(editor: Editor): void {

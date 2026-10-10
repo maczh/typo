@@ -156,6 +156,15 @@ export default {
   dialog: {
     settings: {
       title: 'Settings',
+      general: 'General',
+      hotkeys: 'Hotkeys',
+      hotkeyHint: 'Click “Rebind” then press a new shortcut combination; press Esc to cancel. Changes apply immediately to menus and globally, and are saved locally.',
+      rebind: 'Rebind',
+      reset: 'Reset',
+      resetAll: 'Reset All',
+      capturing: 'Press the new shortcut…',
+      conflict: 'Conflicts with “{name}”',
+      noShortcut: 'Not set',
       theme: 'Theme',
       language: 'Language',
       fontSize: 'Font Size',
@@ -243,7 +252,6 @@ export default {
     success: 'Exported',
     fail: 'Export failed',
     html: 'HTML',
-    word: 'Word',
     pdf: 'PDF',
     markdown: 'Markdown',
   },

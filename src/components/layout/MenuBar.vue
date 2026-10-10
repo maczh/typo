@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { MenuItem } from './menuTypes'
 import MenuNode from './MenuNode.vue'
@@ -9,6 +9,7 @@ import { exportDocument } from '@/utils/exporter'
 import { useEditorStore } from '@/stores/editor'
 import { useSettingsStore } from '@/stores/settings'
 import { useMilkdown } from '@/composables/useMilkdown'
+import { hk } from '@/composables/useHotkeys'
 import type { ExportFormat } from '@/types'
 
 const { t } = useI18n()
@@ -19,13 +20,40 @@ const milkdown = useMilkdown()
 
 const openMenu = ref<string | null>(null)
 const aboutOpen = ref(false)
+const menuBarEl = ref<HTMLElement | null>(null)
+
+/**
+ * Auto-close the open dropdown on:
+ *  - any pointer-down outside the menu bar,
+ *  - any keyboard input (typing a character) or ESC.
+ * This replaces the old behaviour where the only way to dismiss a menu was to
+ * click its title again.
+ */
+function onDocPointerDown(e: MouseEvent): void {
+  if (!openMenu.value) return
+  if (menuBarEl.value && !menuBarEl.value.contains(e.target as Node)) openMenu.value = null
+}
+function onKey(e: KeyboardEvent): void {
+  if (!openMenu.value) return
+  if (e.key === 'Escape' || e.key.length === 1 || ['Enter', 'Backspace', 'Tab', 'Delete'].includes(e.key)) {
+    openMenu.value = null
+  }
+}
+onMounted(() => {
+  document.addEventListener('mousedown', onDocPointerDown)
+  document.addEventListener('keydown', onKey)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', onDocPointerDown)
+  document.removeEventListener('keydown', onKey)
+})
 
 const inCode = (): boolean => A.nodeActive('code_block') || A.nodeActive('fence')
 const inTable = (): boolean => A.nodeActive('table')
 const inLink = (): boolean => A.markActive('link')
 const inTask = (): boolean => A.nodeActive('list_item')
 
-const menus: { id: string; titleKey: string; items: MenuItem[] }[] = [
+const menus = computed<{ id: string; titleKey: string; items: MenuItem[] }[]>(() => [
   {
     id: 'file',
     titleKey: 'menu.file',
@@ -34,9 +62,9 @@ const menus: { id: string; titleKey: string; items: MenuItem[] }[] = [
       { id: 'newWindow', titleKey: 'menu.newWindow' },
       { id: 'open', titleKey: 'menu.open' },
       { id: 'openFolder', titleKey: 'menu.openFolder' },
-      { id: 'quickOpen', titleKey: 'menu.quickOpen', shortcut: 'Ctrl/⌘+P' },
-      { id: 'save', titleKey: 'menu.save', shortcut: 'Ctrl/⌘+S' },
-      { id: 'saveAs', titleKey: 'menu.saveAs', shortcut: 'Ctrl/⌘+⇧+S' },
+      { id: 'quickOpen', titleKey: 'menu.quickOpen', shortcut: hk('quickOpen') },
+      { id: 'save', titleKey: 'menu.save', shortcut: hk('save') },
+      { id: 'saveAs', titleKey: 'menu.saveAs', shortcut: hk('saveAs') },
       { id: 'close', titleKey: 'menu.close' },
       { id: 'recent', titleKey: 'menu.recent' },
       {
@@ -45,63 +73,62 @@ const menus: { id: string; titleKey: string; items: MenuItem[] }[] = [
         sub: [
           { id: 'export-md', titleKey: 'export.markdown' },
           { id: 'export-html', titleKey: 'export.html' },
-          { id: 'export-docx', titleKey: 'export.word' },
           { id: 'export-pdf', titleKey: 'export.pdf' },
         ],
       },
-      { id: 'preferences', titleKey: 'menu.preferences', shortcut: 'Ctrl/⌘+,' },
+      { id: 'preferences', titleKey: 'menu.preferences', shortcut: hk('preferences') },
     ],
   },
   {
     id: 'edit',
     titleKey: 'menu.edit',
     items: [
-      { id: 'undo', titleKey: 'menu.undo', shortcut: 'Ctrl/⌘+Z' },
-      { id: 'redo', titleKey: 'menu.redo', shortcut: 'Ctrl/⌘+Y' },
-      { id: 'cut', titleKey: 'menu.cut', shortcut: 'Ctrl/⌘+X' },
-      { id: 'copy', titleKey: 'menu.copy', shortcut: 'Ctrl/⌘+C' },
-      { id: 'paste', titleKey: 'menu.paste', shortcut: 'Ctrl/⌘+V' },
-      { id: 'copyAsMarkdown', titleKey: 'menu.copyAsMarkdown', shortcut: 'Ctrl/⌘+⇧+D' },
-      { id: 'pastePlain', titleKey: 'menu.pastePlain', shortcut: 'Ctrl/⌘+⇧+V' },
-      { id: 'selectAll', titleKey: 'menu.selectAll', shortcut: 'Ctrl/⌘+A' },
-      { id: 'find', titleKey: 'menu.find', shortcut: 'Ctrl/⌘+F' },
-      { id: 'replace', titleKey: 'menu.replace', shortcut: 'Ctrl/⌘+H' },
+      { id: 'undo', titleKey: 'menu.undo', shortcut: hk('undo') },
+      { id: 'redo', titleKey: 'menu.redo', shortcut: hk('redo') },
+      { id: 'cut', titleKey: 'menu.cut', shortcut: hk('cut') },
+      { id: 'copy', titleKey: 'menu.copy', shortcut: hk('copy') },
+      { id: 'paste', titleKey: 'menu.paste', shortcut: hk('paste') },
+      { id: 'copyAsMarkdown', titleKey: 'menu.copyAsMarkdown', shortcut: hk('copyAsMarkdown') },
+      { id: 'pastePlain', titleKey: 'menu.pastePlain', shortcut: hk('pastePlain') },
+      { id: 'selectAll', titleKey: 'menu.selectAll', shortcut: hk('selectAll') },
+      { id: 'find', titleKey: 'menu.find', shortcut: hk('find') },
+      { id: 'replace', titleKey: 'menu.replace', shortcut: hk('replace') },
     ],
   },
   {
     id: 'paragraph',
     titleKey: 'menu.paragraph',
     items: [
-      { id: 'h1', titleKey: 'menu.h1', shortcut: 'Ctrl/⌘+1' },
-      { id: 'h2', titleKey: 'menu.h2', shortcut: 'Ctrl/⌘+2' },
-      { id: 'h3', titleKey: 'menu.h3', shortcut: 'Ctrl/⌘+3' },
-      { id: 'h4', titleKey: 'menu.h4', shortcut: 'Ctrl/⌘+4' },
-      { id: 'h5', titleKey: 'menu.h5', shortcut: 'Ctrl/⌘+5' },
-      { id: 'h6', titleKey: 'menu.h6', shortcut: 'Ctrl/⌘+6' },
+      { id: 'h1', titleKey: 'menu.h1', shortcut: hk('h1') },
+      { id: 'h2', titleKey: 'menu.h2', shortcut: hk('h2') },
+      { id: 'h3', titleKey: 'menu.h3', shortcut: hk('h3') },
+      { id: 'h4', titleKey: 'menu.h4', shortcut: hk('h4') },
+      { id: 'h5', titleKey: 'menu.h5', shortcut: hk('h5') },
+      { id: 'h6', titleKey: 'menu.h6', shortcut: hk('h6') },
       { sep: true },
-      { id: 'paragraph', titleKey: 'menu.paragraph', shortcut: 'Ctrl/⌘+0' },
+      { id: 'paragraph', titleKey: 'menu.paragraph', shortcut: hk('paragraph') },
       { sep: true },
-      { id: 'incHeading', titleKey: 'menu.incHeading', shortcut: 'Ctrl/⌘+=' },
-      { id: 'decHeading', titleKey: 'menu.decHeading', shortcut: 'Ctrl/⌘+-' },
+      { id: 'incHeading', titleKey: 'menu.incHeading', shortcut: hk('incHeading') },
+      { id: 'decHeading', titleKey: 'menu.decHeading', shortcut: hk('decHeading') },
       { sep: true },
       {
         titleKey: 'menu.table',
-        shortcut: 'Ctrl/⌘+T',
+        shortcut: hk('insertTable'),
         sub: [
-          { id: 'table-insert', titleKey: 'menu.insertTable', shortcut: 'Alt/⌥+⌘+T' },
+          { id: 'table-insert', titleKey: 'menu.insertTable', shortcut: hk('insertTable') },
           { sep: true },
           { id: 'table-row-above', titleKey: 'ctx.rowAbove', disabled: () => !inTable() },
-          { id: 'table-row-below', titleKey: 'ctx.rowBelow', shortcut: 'Ctrl/⌘+⇧+⏎', disabled: () => !inTable() },
+          { id: 'table-row-below', titleKey: 'ctx.rowBelow', shortcut: hk('table-row-below'), disabled: () => !inTable() },
           { sep: true },
           { id: 'table-col-left', titleKey: 'ctx.colLeft', disabled: () => !inTable() },
           { id: 'table-col-right', titleKey: 'ctx.colRight', disabled: () => !inTable() },
           { sep: true },
-          { id: 'table-move-row-up', titleKey: 'ctx.moveRowUp', shortcut: 'Alt/⌥+⌘+↑', disabled: () => !inTable() },
-          { id: 'table-move-row-down', titleKey: 'ctx.moveRowDown', shortcut: 'Alt/⌥+⌘+↓', disabled: () => !inTable() },
-          { id: 'table-move-col-left', titleKey: 'ctx.moveColLeft', shortcut: 'Alt/⌥+⌘+←', disabled: () => !inTable() },
-          { id: 'table-move-col-right', titleKey: 'ctx.moveColRight', shortcut: 'Alt/⌥+⌘+→', disabled: () => !inTable() },
+          { id: 'table-move-row-up', titleKey: 'ctx.moveRowUp', shortcut: hk('table-move-row-up'), disabled: () => !inTable() },
+          { id: 'table-move-row-down', titleKey: 'ctx.moveRowDown', shortcut: hk('table-move-row-down'), disabled: () => !inTable() },
+          { id: 'table-move-col-left', titleKey: 'ctx.moveColLeft', shortcut: hk('table-move-col-left'), disabled: () => !inTable() },
+          { id: 'table-move-col-right', titleKey: 'ctx.moveColRight', shortcut: hk('table-move-col-right'), disabled: () => !inTable() },
           { sep: true },
-          { id: 'table-del-row', titleKey: 'ctx.deleteRow', shortcut: 'Ctrl/⌘+⇧+⌫', disabled: () => !inTable() },
+          { id: 'table-del-row', titleKey: 'ctx.deleteRow', shortcut: hk('table-del-row'), disabled: () => !inTable() },
           { id: 'table-del-col', titleKey: 'ctx.deleteCol', disabled: () => !inTable() },
           { sep: true },
           { id: 'table-copy', titleKey: 'ctx.copyTable', disabled: () => !inTable() },
@@ -110,8 +137,8 @@ const menus: { id: string; titleKey: string; items: MenuItem[] }[] = [
           { id: 'table-del', titleKey: 'ctx.deleteTable', disabled: () => !inTable() },
         ],
       },
-      { id: 'mathBlock', titleKey: 'menu.insertMath', shortcut: 'Alt/⌥+⌘+B' },
-      { id: 'codeBlock', titleKey: 'menu.codeBlock', shortcut: 'Alt/⌥+⌘+C' },
+      { id: 'mathBlock', titleKey: 'menu.insertMath', shortcut: hk('mathBlock') },
+      { id: 'codeBlock', titleKey: 'menu.codeBlock', shortcut: hk('codeBlock') },
       {
         titleKey: 'menu.codeTools',
         sub: [
@@ -131,11 +158,11 @@ const menus: { id: string; titleKey: string; items: MenuItem[] }[] = [
         ],
       },
       { sep: true },
-      { id: 'quote', titleKey: 'menu.quote', shortcut: 'Ctrl/⌘+⇧+Q' },
+      { id: 'quote', titleKey: 'menu.quote', shortcut: hk('quote') },
       { sep: true },
-      { id: 'orderedList', titleKey: 'menu.orderedList', shortcut: 'Alt/⌥+⌘+O' },
-      { id: 'unorderedList', titleKey: 'menu.unorderedList', shortcut: 'Alt/⌥+⌘+U' },
-      { id: 'taskList', titleKey: 'menu.taskList', shortcut: 'Ctrl/⌘+⇧+X' },
+      { id: 'orderedList', titleKey: 'menu.orderedList', shortcut: hk('orderedList') },
+      { id: 'unorderedList', titleKey: 'menu.unorderedList', shortcut: hk('unorderedList') },
+      { id: 'taskList', titleKey: 'menu.taskList', shortcut: hk('taskList') },
       {
         titleKey: 'menu.taskStatus',
         disabled: () => !inTask(),
@@ -156,8 +183,8 @@ const menus: { id: string; titleKey: string; items: MenuItem[] }[] = [
       { id: 'insertParaAbove', titleKey: 'menu.insertParaAbove' },
       { id: 'insertParaBelow', titleKey: 'menu.insertParaBelow' },
       { sep: true },
-      { id: 'linkReference', titleKey: 'menu.linkReference', shortcut: 'Alt/⌥+⌘+L' },
-      { id: 'footnote', titleKey: 'menu.footnote', shortcut: 'Alt/⌥+⌘+R' },
+      { id: 'linkReference', titleKey: 'menu.linkReference', shortcut: hk('linkReference') },
+      { id: 'footnote', titleKey: 'menu.footnote', shortcut: hk('footnote') },
       { sep: true },
       { id: 'horizontalRule', titleKey: 'menu.horizontalRule' },
       { id: 'toc', titleKey: 'menu.toc' },
@@ -167,16 +194,16 @@ const menus: { id: string; titleKey: string; items: MenuItem[] }[] = [
     id: 'format',
     titleKey: 'menu.format',
     items: [
-      { id: 'bold', titleKey: 'menu.bold', shortcut: 'Ctrl/⌘+B' },
-      { id: 'italic', titleKey: 'menu.italic', shortcut: 'Ctrl/⌘+I' },
-      { id: 'underline', titleKey: 'menu.underline', shortcut: 'Ctrl/⌘+U' },
-      { id: 'inlineCode', titleKey: 'menu.code', shortcut: 'Ctrl/⌘+⇧+`' },
+      { id: 'bold', titleKey: 'menu.bold', shortcut: hk('bold') },
+      { id: 'italic', titleKey: 'menu.italic', shortcut: hk('italic') },
+      { id: 'underline', titleKey: 'menu.underline', shortcut: hk('underline') },
+      { id: 'inlineCode', titleKey: 'menu.code', shortcut: hk('inlineCode') },
       { sep: true },
-      { id: 'inlineMath', titleKey: 'menu.inlineMath', shortcut: 'Ctrl/⌘+M' },
-      { id: 'strike', titleKey: 'menu.strike', shortcut: 'Alt/⌥+⌘+5' },
+      { id: 'inlineMath', titleKey: 'menu.inlineMath', shortcut: hk('inlineMath') },
+      { id: 'strike', titleKey: 'menu.strike', shortcut: hk('strike') },
       { id: 'comment', titleKey: 'menu.comment' },
       { sep: true },
-      { id: 'link', titleKey: 'menu.link', shortcut: 'Ctrl/⌘+K' },
+      { id: 'link', titleKey: 'menu.link', shortcut: hk('link') },
       {
         titleKey: 'menu.link',
         disabled: () => !inLink(),
@@ -236,23 +263,23 @@ const menus: { id: string; titleKey: string; items: MenuItem[] }[] = [
         sub: [{ titleKey: 'menu.noSpecialOp', disabled: () => true }],
       },
       { sep: true },
-      { id: 'clearFormat', titleKey: 'menu.clearFormat', shortcut: 'Ctrl/⌘+\\' },
+      { id: 'clearFormat', titleKey: 'menu.clearFormat', shortcut: hk('clearFormat') },
     ],
   },
   {
     id: 'view',
     titleKey: 'menu.view',
     items: [
-      { id: 'sourceMode', titleKey: 'menu.sourceMode', shortcut: 'Ctrl/⌘+/' },
-      { id: 'toggleSidebar', titleKey: 'menu.toggleSidebar', shortcut: 'Ctrl/⌘+⇧+L' },
-      { id: 'outline', titleKey: 'menu.toggleOutline', shortcut: 'Ctrl/⌘+⇧+1' },
-      { id: 'fileTree', titleKey: 'menu.fileTree', shortcut: 'Ctrl/⌘+⇧+3' },
-      { id: 'focusMode', titleKey: 'menu.focusMode', shortcut: 'F8' },
-      { id: 'typewriterMode', titleKey: 'menu.typewriterMode', shortcut: 'F9' },
-      { id: 'fullscreen', titleKey: 'menu.fullscreen', shortcut: 'F11' },
-      { id: 'zoomActual', titleKey: 'menu.zoomActual', shortcut: 'Ctrl/⌘+⇧+0' },
-      { id: 'zoomIn', titleKey: 'menu.zoomIn', shortcut: 'Ctrl/⌘+⇧+=' },
-      { id: 'zoomOut', titleKey: 'menu.zoomOut', shortcut: 'Ctrl/⌘+⇧+-' },
+      { id: 'sourceMode', titleKey: 'menu.sourceMode', shortcut: hk('sourceMode') },
+      { id: 'toggleSidebar', titleKey: 'menu.toggleSidebar', shortcut: hk('toggleSidebar') },
+      { id: 'outline', titleKey: 'menu.toggleOutline', shortcut: hk('outline') },
+      { id: 'fileTree', titleKey: 'menu.fileTree', shortcut: hk('fileTree') },
+      { id: 'focusMode', titleKey: 'menu.focusMode', shortcut: hk('focusMode') },
+      { id: 'typewriterMode', titleKey: 'menu.typewriterMode', shortcut: hk('typewriterMode') },
+      { id: 'fullscreen', titleKey: 'menu.fullscreen', shortcut: hk('fullscreen') },
+      { id: 'zoomActual', titleKey: 'menu.zoomActual', shortcut: hk('zoomActual') },
+      { id: 'zoomIn', titleKey: 'menu.zoomIn', shortcut: hk('zoomIn') },
+      { id: 'zoomOut', titleKey: 'menu.zoomOut', shortcut: hk('zoomOut') },
     ],
   },
   {
@@ -271,11 +298,11 @@ const menus: { id: string; titleKey: string; items: MenuItem[] }[] = [
     id: 'help',
     titleKey: 'menu.help',
     items: [
-      { id: 'commandPalette', titleKey: 'menu.commandPalette', shortcut: 'Ctrl/⌘+⇧+P' },
+      { id: 'commandPalette', titleKey: 'menu.commandPalette', shortcut: hk('commandPalette') },
       { id: 'about', titleKey: 'menu.about' },
     ],
   },
-]
+])
 
 function toggleMenu(id: string): void {
   openMenu.value = openMenu.value === id ? null : id
@@ -313,7 +340,6 @@ function runCommand(id: string): void {
     case 'recent': ui.toggleSidebar(); break
     case 'export-md': void doExport('markdown'); break
     case 'export-html': void doExport('html'); break
-    case 'export-docx': void doExport('docx'); break
     case 'export-pdf': void doExport('pdf'); break
     case 'preferences': ui.openSettings(); break
     // Edit
@@ -428,7 +454,7 @@ function runCommand(id: string): void {
 </script>
 
 <template>
-  <header class="menu-bar" @click="closeMenu">
+  <header ref="menuBarEl" class="menu-bar" @click="closeMenu">
     <div class="brand" @click.stop>
       <img src="/logo.png" class="brand-logo" alt="Typo" />
       <span class="brand-name">{{ t('app.name') }}</span>
@@ -458,7 +484,7 @@ function runCommand(id: string): void {
     <div v-if="aboutOpen" class="about-mask" @click.self="aboutOpen = false">
       <div class="about-dialog">
         <img src="/logo.png" class="about-logo" alt="Typo" />
-        <h2>{{ t('app.name') }} v0.1.0</h2>
+        <h2>{{ t('app.name') }} v0.1.1</h2>
         <p class="about-desc">A Typora-style WYSIWYG Markdown editor.</p>
         <button class="about-btn" @click="aboutOpen = false">{{ t('common.close') }}</button>
       </div>

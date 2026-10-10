@@ -120,7 +120,129 @@ export function toggleBlockquote(editor: Editor): void {
 export function setCodeBlock(editor: Editor): void {
   runWithView(editor, (view) => {
     const t = nodeType(view.state.schema, 'code_block', 'fence')
-    if (t) setBlockType(t)(view.state, view.dispatch)
+    if (!t) return
+    const { state, dispatch } = view
+    // Apply the block change first; `view.dispatch` updates `view.state` in place.
+    if (!setBlockType(t)(state, dispatch)) return
+    // Collapse the caret at the end of the new (empty) code block instead of
+    // letting ProseMirror / CodeMirror select the first line on creation.
+    const sel = view.state.selection
+    const $from = sel.$from
+    for (let d = $from.depth; d > 0; d -= 1) {
+      const node = $from.node(d)
+      if (node.type.name === 'code_block' || node.type.name === 'fence') {
+        const start = $from.before(d)
+        const end = start + node.nodeSize
+        const collapsed = TextSelection.near(view.state.doc.resolve(Math.max(start + 1, end - 1)))
+        try {
+          view.dispatch(view.state.tr.setSelection(collapsed))
+        } catch {
+          /* the position adjusted out of range between the two dispatches */
+        }
+        break
+      }
+    }
+  })
+}
+
+/** Find the code-block node (and the doc position just inside it) at the caret. */
+function enclosingCodeBlock(
+  view: EditorView,
+): { node: PMNode; contentStart: number } | null {
+  const { $from } = view.state.selection
+  for (let d = $from.depth; d > 0; d -= 1) {
+    const node = $from.node(d)
+    if (node.type.name === 'code_block' || node.type.name === 'fence') {
+      // `before(d)` is the position of the node's opening token; +1 is the first
+      // character of its text content.
+      return { node, contentStart: $from.before(d) + 1 }
+    }
+  }
+  return null
+}
+
+/** The plain-text content of the code block at the caret (null when not in one). */
+export function getCodeBlockText(editor: Editor | null): string | null {
+  if (!editor) return null
+  let text: string | null = null
+  runWithView(editor, (view) => {
+    const found = enclosingCodeBlock(view)
+    if (found) text = found.node.textContent
+  })
+  return text
+}
+
+/**
+ * Indent the lines of the code block at the caret. With `mode === 'all'` every
+ * line is indented by two spaces; with `mode === 'selection'` only the lines
+ * intersecting the current selection are (a collapsed caret indents its line).
+ */
+export function indentCodeLines(editor: Editor, mode: 'all' | 'selection'): void {
+  runWithView(editor, (view) => {
+    const found = enclosingCodeBlock(view)
+    if (!found) return
+    const { node, contentStart } = found
+    const text = node.textContent
+    if (!text) return
+    const { state, dispatch } = view
+    const sel = state.selection
+    const fromOff = Math.max(0, sel.from - contentStart)
+    const toOff = Math.max(0, sel.to - contentStart)
+
+    const lineStartOf = (offset: number): number => {
+      const idx = text.lastIndexOf('\n', offset - 1)
+      return idx < 0 ? 0 : idx + 1
+    }
+    const firstLine = text.slice(0, fromOff).split('\n').length - 1
+    const lastLine = text.slice(0, toOff).split('\n').length - 1
+
+    const lines = text.split('\n')
+    const newLines = lines.map((line, i) => {
+      if (mode === 'all') return `  ${line}`
+      if (i >= firstLine && i <= lastLine) return `  ${line}`
+      return line
+    })
+    const newText = newLines.join('\n')
+
+    const textNode = state.schema.text(newText)
+    const tr = state.tr.replaceWith(contentStart, contentStart + text.length, textNode)
+    tr.setSelection(TextSelection.near(tr.doc.resolve(contentStart + newText.length)))
+    dispatch(tr)
+  })
+}
+
+export type AlertType = 'NOTE' | 'TIP' | 'IMPORTANT' | 'WARNING' | 'CAUTION'
+
+/** Insert a GitHub-style alert (blockquote with `[!TYPE]`) at the caret. */
+export function insertAlert(editor: Editor, type: AlertType): void {
+  const template = `> [!${type}]\n> 内容\n\n`
+  editor.action(insert(template))
+}
+
+export type TaskStatus = 'selected' | 'unselected' | 'ignored'
+
+/**
+ * Set the checkbox state of the task-list item containing the caret.
+ *  - `selected`   → `[x]`
+ *  - `unselected` → `[ ]`
+ *  - `ignored`    → `[-]` (stored as a null `checked` attr; the schema only
+ *    distinguishes boolean|null, so this is the closest representation).
+ */
+export function setTaskStatus(editor: Editor, status: TaskStatus): void {
+  runWithView(editor, (view) => {
+    const { state, dispatch } = view
+    const $from = state.selection.$from
+    for (let d = $from.depth; d > 0; d -= 1) {
+      const node = $from.node(d)
+      if (node.type.name === 'list_item' && 'checked' in node.attrs) {
+        const pos = $from.before(d)
+        const checked = status === 'selected' ? true : status === 'unselected' ? false : null
+        const tr = state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, checked })
+        tr.setSelection(TextSelection.near(tr.doc.resolve(pos + 1)))
+        dispatch(tr)
+        return
+      }
+    }
   })
 }
 
@@ -198,9 +320,85 @@ export function toggleStrike(editor: Editor): boolean {
   return toggleMarkBy(editor, 'strike_through', 'strikethrough', 'strike')
 }
 
-/** Milkdown's default schema has no underline mark — callers show a hint. */
-export function toggleUnderline(_editor: Editor): boolean {
-  return false
+/** Toggle the real `underline` mark (registered by the underline plugin). */
+export function toggleUnderline(editor: Editor): boolean {
+  return toggleMarkBy(editor, 'underline')
+}
+
+/* ------------------------------------------------------------------ */
+/* Link operations (format menu)                                       */
+/* ------------------------------------------------------------------ */
+
+/** The `href` of the link mark at the caret / over the selection, if any. */
+export function getLinkHref(editor: Editor | null): string | null {
+  if (!editor) return null
+  let href: string | null = null
+  runWithView(editor, (view) => {
+    const mt = markType(view.state.schema, 'link')
+    if (!mt) return
+    const { state } = view
+    const marks = state.selection.$from.marks()
+    const onMark =
+      marks.find((m) => m.type === mt) ?? (state.storedMarks ?? []).find((m) => m.type === mt)
+    href = onMark ? ((onMark.attrs as { href?: string }).href ?? null) : null
+  })
+  return href
+}
+
+/** The document range fully covered by the link mark at the caret, if any. */
+export function getLinkRange(editor: Editor | null): { from: number; to: number } | null {
+  if (!editor) return null
+  let range: { from: number; to: number } | null = null
+  runWithView(editor, (view) => {
+    const mt = markType(view.state.schema, 'link')
+    if (!mt) return
+    const { state } = view
+    const { from, to, empty } = state.selection
+    // Resolve the link mark that applies at the caret (or within the selection).
+    const $from = state.selection.$from
+    let mark = $from.marks().find((m) => m.type === mt)
+    if (!mark && !empty) {
+      state.doc.nodesBetween(from, to, (node) => {
+        if (mark) return false
+        const m = node.marks.find((mm) => mm.type === mt)
+        if (m) mark = m
+        return true
+      })
+    }
+    if (!mark) return
+    // Expand left/right across the parent text block to the contiguous run of
+    // the same link mark. (Reimplements prosemirror's getMarkRange, which is
+    // not re-exported by @milkdown/prose/state.)
+    const parentStart = $from.start()
+    const parentEnd = parentStart + $from.parent.content.size
+    let start = from
+    let end = empty ? from : to
+    while (start > parentStart && state.doc.rangeHasMark(start - 1, start, mt)) start -= 1
+    while (end < parentEnd && state.doc.rangeHasMark(end, end + 1, mt)) end += 1
+    if (end > start) range = { from: start, to: end }
+  })
+  return range
+}
+
+/** Replace the link mark over `[from, to]` with a new `href`. */
+export function setLinkHref(editor: Editor, from: number, to: number, href: string): void {
+  runWithView(editor, (view) => {
+    const mt = markType(view.state.schema, 'link')
+    if (!mt) return
+    const { state, dispatch } = view
+    dispatch(state.tr.removeMark(from, to, mt).addMark(from, to, mt.create({ href })))
+  })
+}
+
+/** Remove every link mark in the selection. */
+export function removeLink(editor: Editor): void {
+  runWithView(editor, (view) => {
+    const mt = markType(view.state.schema, 'link')
+    if (!mt) return
+    const { state, dispatch } = view
+    const { from, to } = state.selection
+    dispatch(state.tr.removeMark(from, to, mt))
+  })
 }
 
 /**

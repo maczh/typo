@@ -5,7 +5,7 @@ import { useTauri } from '@/composables/useTauri'
 import { i18n } from '@/i18n'
 
 const defaultSettings: Settings = {
-  theme: 'github-light',
+  theme: 'github',
   language: 'zh-CN',
   fontSize: 16,
   lineHeight: 1.6,
@@ -18,8 +18,12 @@ const defaultSettings: Settings = {
 }
 
 const themes: ThemeDef[] = [
-  { id: 'github-light', name: 'GitHub Light', kind: 'light' },
-  { id: 'nord-dark', name: 'Nord Dark', kind: 'dark' },
+  { id: 'github', name: 'Github', kind: 'light' },
+  { id: 'gothic', name: 'Gothic', kind: 'dark' },
+  { id: 'newsprint', name: 'Newsprint', kind: 'light' },
+  { id: 'night', name: 'Night', kind: 'dark' },
+  { id: 'pixyll', name: 'Pixyll', kind: 'light' },
+  { id: 'whitey', name: 'Whitey', kind: 'light' },
 ]
 
 /**
@@ -31,10 +35,24 @@ export const useSettingsStore = defineStore('settings', () => {
   const themeList = ref<ThemeDef[]>(themes)
 
   function loadThemeCss(id: string): void {
-    if (id === 'nord-dark') {
-      import('@/styles/themes/nord-dark.css')
-    } else {
-      import('@/styles/themes/github-light.css')
+    switch (id) {
+      case 'gothic':
+        void import('@/styles/themes/gothic.css')
+        break
+      case 'newsprint':
+        void import('@/styles/themes/newsprint.css')
+        break
+      case 'night':
+        void import('@/styles/themes/night.css')
+        break
+      case 'pixyll':
+        void import('@/styles/themes/pixyll.css')
+        break
+      case 'whitey':
+        void import('@/styles/themes/whitey.css')
+        break
+      default:
+        void import('@/styles/themes/github.css')
     }
   }
 
@@ -46,6 +64,9 @@ export const useSettingsStore = defineStore('settings', () => {
     } catch {
       /* keep defaults */
     }
+    // Migrate legacy theme ids so old configs don't lose their theme.
+    if (settings.theme === 'github-light') settings.theme = 'github'
+    if (settings.theme === 'nord-dark') settings.theme = 'night'
     applyTheme(settings.theme)
     setLanguage(settings.language)
     applyTypography()

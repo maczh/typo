@@ -8,14 +8,28 @@ use crate::state::{now_ms, AppState};
 /// Maximum number of recent-file entries kept.
 const MAX_RECENT: usize = 20;
 
+/// Whether a path points at a Markdown file (`.md` / `.markdown`, case-insensitive).
+fn is_markdown(path: &str) -> bool {
+    match Path::new(path).extension().and_then(|s| s.to_str()) {
+        Some(ext) => {
+            let e = ext.to_lowercase();
+            e == "md" || e == "markdown"
+        }
+        None => false,
+    }
+}
+
 /// List the recent files, most-recent first.
+///
+/// Non-Markdown entries are filtered out so the recent list only ever shows files
+/// the editor can actually open (DOCX / HTML import was removed).
 #[tauri::command]
 pub async fn list_recent(state: State<'_, AppState>) -> Result<Vec<RecentItem>, String> {
     let r = state
         .recent
         .lock()
         .map_err(|_| "recent lock poisoned".to_string())?;
-    Ok(r.clone())
+    Ok(r.iter().filter(|item| is_markdown(&item.path)).cloned().collect())
 }
 
 /// Add (or bump) a path in the recent-files list.

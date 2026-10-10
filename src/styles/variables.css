@@ -4,7 +4,10 @@
    and loading the matching css under styles/themes/.
    =========================================================================== */
 :root,
-[data-theme='github-light'] {
+[data-theme='github'],
+[data-theme='newsprint'],
+[data-theme='pixyll'],
+[data-theme='whitey'] {
   --bg: #ffffff;
   --fg: #24292f;
   --fg-muted: #57606a;
@@ -34,10 +37,17 @@
   --radius: 6px;
 }
 
-/* Editor area backgrounds for the Milkdown ProseMirror surface. */
-[data-theme='github-light'] .milkdown,
-[data-theme='github-light'] .editor-pane {
+/* Light themes default to a white editor surface (overridable per theme). */
+[data-theme='github'] .milkdown,
+[data-theme='github'] .editor-pane,
+[data-theme='newsprint'] .milkdown,
+[data-theme='newsprint'] .editor-pane,
+[data-theme='pixyll'] .milkdown,
+[data-theme='pixyll'] .editor-pane,
+[data-theme='whitey'] .milkdown,
+[data-theme='whitey'] .editor-pane {
   --editor-bg: #ffffff;
 }
 
-/* Raw dark palette is defined in themes/nord-dark.css and overrides these. */
+/* Dark themes are defined in themes/gothic.css and themes/night.css and override
+   the tokens above. */

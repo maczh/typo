@@ -44,7 +44,7 @@ export interface RecentItem {
 }
 
 /** How a dropped-in file should be interpreted before it becomes Markdown. */
-export type OpenKind = 'markdown' | 'text' | 'html' | 'docx'
+export type OpenKind = 'markdown' | 'text'
 
 /** Result of opening a file (mirrors Rust `FileResult`). */
 export interface FileResult {

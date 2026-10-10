@@ -3,12 +3,15 @@ import { ref } from 'vue'
 import type { FileItem, RecentItem } from '@/types'
 import { useTauri } from '@/composables/useTauri'
 import { dirname } from '@/utils/file'
-import { importToMarkdown } from '@/utils/import'
 
 /**
  * Files store — directory tree, recent files and the current working directory.
  * Open/new operations load the document into the editor store (lazy import to
  * avoid a circular dependency with stores/editor.ts).
+ *
+ * Only Markdown files are opened now (HTML / DOCX import was removed), so the
+ * file content is always plain UTF-8 text and is loaded directly as the
+ * document's Markdown source of truth.
  */
 export const useFilesStore = defineStore('files', () => {
   const tree = ref<FileItem[]>([])
@@ -25,27 +28,7 @@ export const useFilesStore = defineStore('files', () => {
     }
     const { useEditorStore } = await import('./editor')
     const editor = useEditorStore()
-    // HTML / DOCX arrive as raw markup / bytes and must be converted to Markdown
-    // before they become the document's source of truth.
-    const kind = result.kind ?? 'text'
-    let content = result.content ?? ''
-    if (kind === 'html' || kind === 'docx') {
-      content = await importToMarkdown({
-        path: result.path,
-        name: result.name,
-        kind,
-        text: result.content ?? '',
-        data: result.data,
-      })
-      // The on-disk file is still HTML/DOCX — saving Markdown back over it would
-      // corrupt it. Open the converted result as a fresh, unsaved draft so the
-      // first save prompts "Save As" with a `.md` name instead of overwriting.
-      const mdName = result.name.replace(/\.(html?|docx)$/i, '.md')
-      editor.loadFromText(content, null, mdName)
-      currentDir.value = dirname(path)
-      await loadRecent()
-      return
-    }
+    const content = result.content ?? ''
     editor.loadFromText(content, result.path, result.name)
     currentDir.value = dirname(path)
     await loadRecent()

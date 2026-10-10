@@ -11,6 +11,11 @@ onMounted(() => {
   if (files.currentDir) void files.refreshTree(files.currentDir)
 })
 
+/** Whether a file name looks like a Markdown file (`.md` / `.markdown`). */
+function isMarkdown(name: string): boolean {
+  return /\.(md|markdown)$/i.test(name)
+}
+
 function openItem(path: string): void {
   void files.openFile(path)
 }
@@ -51,6 +56,7 @@ function openDir(path: string): void {
     <ul class="list">
       <li
         v-for="item in files.tree"
+        v-show="item.isDir || isMarkdown(item.name)"
         :key="item.path"
         class="entry"
         :class="{ dir: item.isDir }"

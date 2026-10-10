@@ -16,6 +16,7 @@ import { useUI } from '@/composables/useUI'
 import { useAutosave } from '@/composables/useAutosave'
 import { useTauri } from '@/composables/useTauri'
 import { useHotkeys } from '@/composables/useHotkeys'
+import { useWindowTitle } from '@/composables/useWindowTitle'
 
 const settingsStore = useSettingsStore()
 const filesStore = useFilesStore()
@@ -25,6 +26,8 @@ const tauri = useTauri()
 // Global Typora-style hotkeys (incl. Ctrl+/ source mode). Registered during
 // setup so its onMounted/onBeforeUnmount hook the AppLayout lifecycle.
 useHotkeys()
+// Keep the window title ("Typo - <file>") in sync with the open document.
+useWindowTitle()
 
 // Destructure so the refs auto-unwrap in the template.
 const { sidebarVisible, commandPaletteOpen, recoveryOpen, settingsOpen, sourceMode, findOpen, quickOpenOpen } = ui

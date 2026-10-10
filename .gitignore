@@ -28,3 +28,9 @@ src-tauri/target/*
 .env
 .env.*
 !.env.example
+
+# Build / test junk (accidentally committed artifacts)
+vite.config.ts.timestamp-*.mjs
+.dist-previous/
+.Trash-0/
+tests/.out/

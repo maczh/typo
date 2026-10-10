@@ -66,3 +66,18 @@
 .milkdown .milkdown-code-block .cm-gutter.cm-foldGutter {
   display: none !important;
 }
+
+/* ---------------------------------------------------------------------------
+   4. Code blocks — suppress the active-line / current-line-number indicator
+   when the block is NOT focused. Crepe's code block rides on CodeMirror, whose
+   `highlightActiveLine` / `highlightActiveLineGutter` paint a highlighted line
+   and a highlighted gutter cell. When the caret leaves the block we don't want
+   a stray highlighted line number lingering, so we neutralise both decorations
+   whenever the editor lacks `.cm-focused`. (The caret is also collapsed to the
+   end of a freshly created block in `prose.setCodeBlock`, so line 1 is never
+   auto-selected on creation.)
+   --------------------------------------------------------------------------- */
+.milkdown .milkdown-code-block .cm-editor:not(.cm-focused) .cm-activeLine,
+.milkdown .milkdown-code-block .cm-editor:not(.cm-focused) .cm-activeLineGutter {
+  background-color: transparent !important;
+}

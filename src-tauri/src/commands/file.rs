@@ -1,7 +1,6 @@
 use std::fs;
 use std::path::Path;
 
-use base64::{engine::general_purpose::STANDARD, Engine as _};
 use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::oneshot;
@@ -34,11 +33,10 @@ async fn pick_path(app: &AppHandle, mode: DialogMode, default_name: Option<&str>
     match mode {
         DialogMode::Open => {
             let mut builder = app.dialog().file();
-            // Filters so HTML / DOCX / Markdown show up directly in the picker.
+            // Only Markdown is supported for import — drop the HTML / Word / text
+            // filters from the picker (see req: open folder / open file → .md only).
             builder = builder
-                .add_filter("Markdown", &["md", "markdown", "txt", "text"])
-                .add_filter("HTML", &["html", "htm"])
-                .add_filter("Word", &["docx"])
+                .add_filter("Markdown", &["md", "markdown"])
                 .add_filter("All Files", &["*"]);
             builder.pick_file(move |p| {
                 let _ = tx.send(p.map(|x| x.to_string()));
@@ -66,18 +64,17 @@ async fn pick_path(app: &AppHandle, mode: DialogMode, default_name: Option<&str>
 fn detect_kind(ext: &str) -> &'static str {
     match ext {
         "md" | "markdown" => "markdown",
-        "txt" | "text" => "text",
-        "html" | "htm" => "html",
-        "docx" => "docx",
-        // Unknown extensions are best-effort read as UTF-8 text.
+        // Everything else is best-effort read as UTF-8 text. HTML / DOCX import
+        // has been removed — there is no longer a docx/html branch here.
         _ => "text",
     }
 }
 
 /// Open a file. When `path` is `None`, a native open dialog is shown.
 ///
-/// Markdown/text/HTML are returned as UTF-8 `content`; DOCX is returned as a
-/// base64 `data` blob so the frontend can run mammoth → turndown locally.
+/// Markdown is returned as UTF-8 `content` with `kind = "markdown"`; every other
+/// text file is returned with `kind = "text"`. (DOCX / HTML conversion was
+/// removed — see req: delete docx/html import.)
 #[tauri::command]
 pub async fn open_file(
     path: Option<String>,
@@ -100,18 +97,16 @@ pub async fn open_file(
         .to_lowercase();
     let kind = detect_kind(&ext);
 
-    let (content, data) = if kind == "docx" {
-        (String::new(), Some(STANDARD.encode(&bytes)))
-    } else {
-        (String::from_utf8_lossy(&bytes).to_string(), None)
-    };
+    let content = String::from_utf8_lossy(&bytes).to_string();
 
     Ok(FileResult {
         path: p,
         name,
         content,
         kind: kind.to_string(),
-        data,
+        // `data` is retained for API compatibility but is always None now that
+        // DOCX is no longer converted on the frontend.
+        data: None,
     })
 }
 
@@ -157,6 +152,18 @@ pub async fn list_dir(path: String) -> Result<Vec<FileItem>, String> {
         // Hide dotfiles / special directories for a cleaner tree.
         if name.is_empty() || name.starts_with('.') {
             continue;
+        }
+        // When listing a folder, only surface Markdown files (`.md` / `.markdown`,
+        // case-insensitive); directories are always kept so the tree can nest.
+        if !is_dir {
+            let ext = p
+                .extension()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+            if !matches!(ext.as_str(), "md" | "markdown") {
+                continue;
+            }
         }
         items.push(FileItem {
             name,

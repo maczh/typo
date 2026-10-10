@@ -7,6 +7,7 @@ import { oneDark } from '@codemirror/theme-one-dark'
 import { i18n } from '@/i18n'
 import { mermaidDiagramPlugin } from './plugins/mermaid'
 import { markdownMarkerPlugin } from './plugins/markdownMarker'
+import { underline, underlineRemark } from './plugins/underline'
 import { htmlToMarkdown } from '@/utils/import'
 
 /** A thin, stable wrapper around a Crepe editor instance. */
@@ -30,8 +31,31 @@ function getCoreEditor(crepe: Crepe | null): Editor | null {
   return (crepe as unknown as { editor?: Editor }).editor ?? null
 }
 
+/**
+ * Whether the active theme is a dark theme. The data-theme attribute is now a
+ * stable id (`github`, `gothic`, `night`, …) whose name no longer encodes
+ * "dark", so we consult the theme definitions' `kind` instead — matching what
+ * the Settings/Theme menu uses, so code-block highlighting (oneDark) stays in
+ * sync with the chosen theme.
+ */
 function isDarkTheme(): boolean {
-  return (document.documentElement.getAttribute('data-theme') || '').includes('dark')
+  const id = document.documentElement.getAttribute('data-theme') || ''
+  const def = themeKindMap[id]
+  if (def) return def === 'dark'
+  // Fallback: no registered theme (e.g. before the store loads) — infer from id.
+  return id.includes('dark')
+}
+
+// Small lookup so isDarkTheme doesn't have to import the Pinia store (which would
+// create a circular dependency during editor boot). Kept in sync with
+// stores/settings.ts's theme list.
+const themeKindMap: Record<string, 'light' | 'dark'> = {
+  github: 'light',
+  gothic: 'dark',
+  newsprint: 'light',
+  night: 'dark',
+  pixyll: 'light',
+  whitey: 'light',
 }
 
 /**
@@ -89,6 +113,9 @@ export async function createEditor(
     instance.addFeature<void>((editor) => {
       editor.use(mermaidDiagramPlugin)
       editor.use(markdownMarkerPlugin)
+      // Real `underline` mark + its `<u>…</u>` markdown round-trip.
+      editor.use(underline)
+      editor.use(underlineRemark)
     })
     attach(instance)
     return instance

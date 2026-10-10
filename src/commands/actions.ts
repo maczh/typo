@@ -350,6 +350,39 @@ export function insertCodeBlock(): void {
   withEditor((e) => prose.setCodeBlock(e))
 }
 
+/* ---------------------------- code tools (paragraph menu) ---------------------------- */
+
+/** Copy the plain text of the code block at the caret to the clipboard. */
+export async function copyCodeBlockContent(): Promise<void> {
+  const text = prose.getCodeBlockText(useMilkdown().getEditor())
+  if (text == null) {
+    showToast('光标不在代码块内', 'info')
+    return
+  }
+  const ok = await writeClipboardText(text)
+  showToast(ok ? '已复制代码块内容' : '复制失败：剪贴板不可用', ok ? 'info' : 'error')
+}
+
+/** Indent the lines intersecting the current selection by two spaces. */
+export function indentSelectedLines(): void {
+  withEditor((e) => prose.indentCodeLines(e, 'selection'))
+}
+
+/** Indent every line of the code block at the caret by two spaces. */
+export function indentCodeBlock(): void {
+  withEditor((e) => prose.indentCodeLines(e, 'all'))
+}
+
+/** Insert a GitHub-style alert block of the given type. */
+export function insertAlert(type: prose.AlertType): void {
+  withEditor((e) => prose.insertAlert(e, type))
+}
+
+/** Set the checkbox state of the task-list item containing the caret. */
+export function setTaskStatus(status: prose.TaskStatus): void {
+  withEditor((e) => prose.setTaskStatus(e, status))
+}
+
 export function insertMathBlock(): void {
   withEditor((e) => insertMath(e, 'E = mc^2', true))
 }
@@ -429,7 +462,9 @@ export function toggleItalic(): void {
 }
 
 export function toggleUnderline(): void {
-  showToast('v1 暂不支持下划线（Markdown 标准外语法）', 'info')
+  withEditor((e) => {
+    if (!prose.toggleUnderline(e)) showToast('当前上下文不支持下划线', 'info')
+  })
 }
 
 export function toggleInlineCode(): void {
@@ -489,6 +524,114 @@ export function pickAndInsertImage(): void {
 
 export function clearStyle(): void {
   withEditor((e) => prose.clearFormatting(e))
+}
+
+/* ---------------------------- link operations (format menu) ---------------------------- */
+
+/** Open the link under the caret in the system browser / Tauri opener. */
+export async function openLink(): Promise<void> {
+  const href = prose.getLinkHref(useMilkdown().getEditor())
+  if (!href) {
+    showToast('光标不在链接上', 'info')
+    return
+  }
+  if (isTauri()) {
+    try {
+      const { openUrl } = await import('@tauri-apps/plugin-opener')
+      await openUrl(href)
+      return
+    } catch {
+      /* fall through to the web fallback */
+    }
+  }
+  window.open(href, '_blank')
+}
+
+/** Copy the `href` of the link under the caret to the clipboard. */
+export async function copyLinkAddress(): Promise<void> {
+  const href = prose.getLinkHref(useMilkdown().getEditor())
+  if (!href) {
+    showToast('光标不在链接上', 'info')
+    return
+  }
+  const ok = await writeClipboardText(href)
+  showToast(ok ? '已复制链接地址' : '复制失败：剪贴板不可用', ok ? 'info' : 'error')
+}
+
+/** Prompt for a new URL and rewrite the link mark at the caret. */
+export async function editLink(): Promise<void> {
+  const editor = useMilkdown().getEditor()
+  if (!editor) return
+  const current = prose.getLinkHref(editor) ?? 'https://'
+  const next = window.prompt('编辑链接地址', current)
+  if (next == null || next === '') return
+  const range = prose.getLinkRange(editor)
+  if (range) prose.setLinkHref(editor, range.from, range.to, next)
+  else prose.setLinkHref(editor, 0, 0, next)
+}
+
+/** Remove the link mark over the selection. */
+export function removeLink(): void {
+  withEditor((e) => prose.removeLink(e))
+}
+
+/* ---------------------------- image submenu (format menu) ---------------------------- */
+
+/** Insert an image from a URL entered in a prompt. */
+export function insertRemoteImage(): void {
+  const url = window.prompt('输入图片 URL', 'https://')
+  if (!url) return
+  const editor = useMilkdown().getEditor()
+  if (editor) insertImage(editor, url, '')
+}
+
+/** Insert from iPhone — requires macOS Continuity, not available in v1. */
+export function insertFromIPhone(): void {
+  showToast('需要 macOS 连续互通，暂未支持', 'info')
+}
+
+/** Reload all images — re-focus the editor so decorations/embeds rebuild. */
+export function reloadAllImages(): void {
+  const editor = useMilkdown().getEditor()
+  if (editor) prose.focus(editor)
+  showToast('已刷新图片', 'info')
+}
+
+/** Copy every local image — needs desktop file access, deferred in v1. */
+export function copyAllImages(): void {
+  showToast('需要桌面能力，v1 暂未开放', 'info')
+}
+
+/** Move every local image — needs desktop file access, deferred in v1. */
+export function moveAllImages(): void {
+  showToast('需要桌面能力，v1 暂未开放', 'info')
+}
+
+/** Upload every local image — needs desktop file access, deferred in v1. */
+export function uploadAllImages(): void {
+  showToast('需要桌面能力，v1 暂未开放', 'info')
+}
+
+/** Open the global image / appearance settings dialog. */
+export function globalImageSettings(): void {
+  useUI().openSettings()
+}
+
+/** Set the image root directory — opens the settings dialog (v1 keeps it simple). */
+export function setImageRoot(): void {
+  useUI().openSettings()
+}
+
+/** Set the local-image insertion behaviour (no special op / copy / assets). */
+export function setImageInsertMode(mode: 'none' | 'current' | 'assets'): void {
+  try {
+    localStorage.setItem('typo-image-insert-mode', mode)
+  } catch {
+    /* ignore */
+  }
+  const label =
+    mode === 'current' ? '复制到当前文件夹' : mode === 'assets' ? '复制到 ./assets' : '无特殊操作'
+  showToast(`图片插入方式：${label}`, 'info')
 }
 
 /* ---------------------------- view ---------------------------- */

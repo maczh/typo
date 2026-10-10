@@ -24,7 +24,7 @@ interface SettingsForm {
 }
 
 const form = reactive<SettingsForm>({
-  theme: 'github-light',
+  theme: 'github',
   language: 'zh-CN',
   fontSize: 16,
   lineHeight: 1.6,

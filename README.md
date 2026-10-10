@@ -28,9 +28,11 @@ Typo 的目标是一个**轻量、本地优先、尊重你文件**的 Markdown �
 - 文档的真实来源始终是 **Markdown 纯文本**，所有保存/导出都从它派生；
 - 编辑时即时渲染，但随时可按 `Ctrl/⌘ + /` 切到源码视图对照；
 - 支持数学公式（KaTeX）、Mermaid 图表、代码高亮、GFM 表格、图片等常见块；
-- 支持把 **HTML / Word（.docx）内容自动转换成 Markdown**（粘贴或打开文件均可）；
+- 支持**粘贴 HTML 自动转换成 Markdown**（保留原网页排版的纯文本结构）；
 - 内置大纲导航、文件树、命令面板、查找替换、主题与多语言、专注/打字机模式；
 - 自动保存 + 崩溃恢复，最近的文档列表。
+- 自定义应用图标与窗口标题（标题栏显示 `Typo - <文件名>`，未保存改动时追加 `•`）；
+- 代码块体验优化：新建代码块光标不默认选中首行，光标离开代码块后隐藏当前行高亮。
 
 应用标识：`productName = "Typo"`，包名/标识符 `com.maczh.typo`，版本 `0.1.0`。
 
@@ -45,12 +47,12 @@ Typo 的目标是一个**轻量、本地优先、尊重你文件**的 Markdown �
 | **数学公式** | 行内 `$...$` 与块级 `$$...$$` 的 KaTeX 渲染 |
 | **图表** | ` ```mermaid ` 围栏代码块，由 Mermaid 懒加载渲染 |
 | **代码** | highlight.js 代码块高亮（内置 20+ 语言子集） |
-| **图片** | 粘贴 / 拖拽 / 本地选择 → 写入 `<文档目录>/assets/` 并以相对路径引用（无文档路径时退化为 data-URL） |
-| **导入** | **粘贴 HTML 自动转 Markdown**；**打开 HTML 文件自动转 Markdown**；**打开 Word（.docx）文件自动转 Markdown**（转换后的文档以未保存草稿打开，首次保存弹「另存为」用 `.md` 名，保护原文件） |
+| **图片** | 粘贴 / 拖拽 / 本地选择 → 写入 `<文档目录>/assets/` 并以相对路径引用（无文档路径时退化为 data-URL）；**保存时**会把文档内嵌的远程（`http/https`）、`data:`、粘贴/拖拽的在线图片自动下载到本地 `assets/`，并把引用改写为相对路径，保证下次打开仍能正确渲染 |
+| **导入** | **粘贴 HTML 自动转 Markdown**（复制网页带格式内容后粘贴即转为 Markdown 源）；「打开文件 / 打开文件夹」仅导入 `.md` / 纯文本 |
 | **导出** | Markdown（.md）、独立 HTML（内联 KaTeX CSS，可离线打开）、Word（.docx）、PDF（系统打印对话框「另存为 PDF」） |
 | **导航** | 实时大纲（H1–H6，点击滚动定位）；快速打开（Ctrl/⌘+P）；命令面板（Ctrl/⌘+⇧+P）；查找/替换（Ctrl/⌘+F / +H） |
-| **侧边栏** | 大纲面板 + 文件树（可打开文件夹、浏览并打开其中的文档） |
-| **主题与语言** | 内置「GitHub Light」「Nord Dark」两套主题；跟随系统 / 手动切换；简体中文 / 繁體中文 / English 三语界面 |
+| **侧边栏** | 大纲面板 + 文件树（上半「最近」最多 10 条；下半为可展开/收起的精致目录树，仅列出 `.md` 文件，天然适配 Windows / macOS / Linux 路径风格） |
+| **主题与语言** | 内置 6 套主题（GitHub / Gothic / Newsprint / Night / Pixyll / Whitey），手动切换亮/暗；简体中文 / 繁體中文 / English 三语界面 |
 | **界面模式** | 专注模式（F8）、打字机模式（F9）、全屏（F11）；字体缩放（Ctrl/⌘+⇧+0/+/−） |
 | **持久化** | 自动保存备份 + 崩溃恢复对话框；最近文件列表 |
 | **剪贴板** | 通过 Tauri 官方 `clipboard-manager` 插件实现「复制为 Markdown」、纯文本粘贴等（在 WebKitGTK 下 `execCommand` 失效时的可靠替代） |
@@ -60,9 +62,10 @@ Typo 的目标是一个**轻量、本地优先、尊重你文件**的 Markdown �
 ## 3. 技术栈
 
 - **桌面层**：Rust + Tauri v2（`src-tauri/`），WebView 渲染前端
+- **远程图片下载**：Rust 端 `reqwest`（rustls-tls，避免系统 OpenSSL 依赖）在保存时拉取文档内嵌的在线图片到本地 `assets/`
 - **前端**：Vue 3 + Vite + TypeScript（`src/`）
 - **编辑器**：[@milkdown/crepe](https://milkdown.dev)（打包了 commonmark、GFM、KaTeX、Mermaid、highlight.js、表格，并具备完整的 Markdown 往返能力）
-- **导入转换**：`turndown` + `turndown-plugin-gfm`（HTML→MD）、`mammoth`（.docx→HTML→MD）
+- **导入转换（粘贴）**：`turndown` + `turndown-plugin-gfm`（HTML→MD）
 - **导出**：`docx`（Word）、`unified` + `remark`/`rehype`（HTML）、`window.print`（PDF）
 - **状态管理**：Pinia（`editor` / `files` / `settings` 三个 store）
 - **国际化**：vue-i18n（zh-CN / zh-TW / en）
@@ -87,8 +90,8 @@ typo/
 │   ├── composables/        # useTauri / useMilkdown / useHotkeys / useUI / useClipboard / ...
 │   ├── commands/           # actions.ts（统一命令层）、prose.ts（ProseMirror 底层）
 │   ├── components/         # layout / sidebar / editor / panels / command / dialogs / common
-│   ├── milkdown/           # setup.ts + plugins/{latex,mermaid,highlight,image,table,markdownMarker}.ts
-│   ├── utils/              # file / outline / markdown / import.ts（HTML·DOCX→MD）/ exporter/*
+│   ├── milkdown/           # setup.ts + plugins/{latex,mermaid,highlight,image,table,markdownMarker,underline}.ts
+│   ├── utils/              # file / outline / markdown / import.ts（HTML→MD，仅用于粘贴）/ exporter/*
 │   ├── i18n/               # index.ts + locales/{zh-CN,zh-TW,en}.ts
 │   └── styles/             # 变量、主题、打印样式
 └── README.md
@@ -212,10 +215,10 @@ npm run tauri build
 
 - **文件**：新建、新建窗口（占位）、打开、打开文件夹、快速打开、保存、另存为、关闭、最近文件（= 侧栏）、导出（Markdown/HTML/Word/PDF）、偏好设置。
 - **编辑**：撤销/重做、剪切、复制、粘贴、复制为 Markdown、粘贴为纯文本、全选、查找、替换。
-- **段落**：H1–H6、正文段落、升/降级标题、插入表格、代码块、数学块、引用、有序/无序/任务列表、缩进/反缩进。
-- **格式**：加粗、斜体、下划线（占位提示）、删除线、行内代码、链接、插入图片、清除样式。
+- **段落**：H1–H6、正文段落、升/降级标题、插入/编辑表格（增删行列、移动行列、复制为 Markdown、删除表格）、数学块、代码块、**代码工具**（复制代码 / 缩进选区 / 缩进代码块）、**提示框 Alert**（Note/Tip/Important/Warning/Caution）、引用、有序/无序/任务列表、**任务状态**（选中 / 未选 / 忽略）、缩进/反缩进、在上方/下方插入段落、脚注、目录等。
+- **格式**：加粗、斜体、**下划线（真实 `<u>` 标记，可 Markdown 往返）**、行内代码、行内公式、删除线、注释、链接（含子菜单：打开链接 / 复制链接地址 / 编辑链接 / 移除链接）、插入图片（远程/本地 + 批量复制·移动·上传·刷新等子菜单）、清除样式。
 - **视图**：源码模式、切换侧边栏、大纲、文件树、专注模式、打字机模式、全屏、实际大小/放大/缩小。
-- **主题**：GitHub Light / Nord Dark。
+- **主题**：GitHub / Gothic / Newsprint / Night / Pixyll / Whitey（带 ✓ 选中标记，亮/暗自动适配代码高亮）。
 - **帮助**：命令面板、关于。
 
 ### 7.3 工具栏与浮动格式菜单
@@ -227,22 +230,13 @@ npm run tauri build
 - **行首手柄**：每个块左侧悬停出现的小控件，点击可对该块执行操作（删除块、转为其它块、插入等）。
 - **右键菜单**：在编辑区右键弹出。支持对**已选中的文字**套用样式 / 插入元素（这是修复后的核心行为：菜单命中的命令会先把选区与焦点交还给编辑器，再执行，避免选区与 DOM 脱节导致命令静默失效）。表格相关操作（增删行列、移动行列、复制为 Markdown、删除表格）也在此处。
 
-### 7.5 导入功能（HTML / Word 自动转 Markdown）
+### 7.5 粘贴 HTML 自动转 Markdown
 
-这是本项目的重点增强能力，三种入口都会最终得到干净的 Markdown 文档：
+从网页等来源复制带格式的内容，在 Typo 中 `Ctrl/⌘ + V` 粘贴时，编辑器会读取剪贴板里的 `text/html`，用 `turndown`（启用 GFM 规则，支持表格、删除线、任务列表）转成 Markdown 后插入；并通过 `stopPropagation()` 阻止 ProseMirror 再把原始 HTML 插一次（避免重复）。在代码块内、纯文本粘贴照常放行。**也可**用「编辑 → 粘贴为纯文本」（`Ctrl/⌘+⇧+V`）忽略格式。
 
-1. **粘贴 HTML 自动转 Markdown**
-   从网页等来源复制带格式的内容，在 Typo 中 `Ctrl/⌘ + V` 粘贴时，编辑器会读取剪贴板里的 `text/html`，用 `turndown`（启用 GFM 规则，支持表格、删除线、任务列表）转成 Markdown 后插入；并通过 `stopPropagation()` 阻止 ProseMirror 再把原始 HTML 插一次（避免重复）。在代码块内、纯文本粘贴照常放行。**也可**用「编辑 → 粘贴为纯文本」（`Ctrl/⌘+⇧+V`）忽略格式。
+> 转换由 `src/utils/import.ts` 的 `htmlToMarkdown` 完成，监听逻辑在 `src/milkdown/setup.ts` 的 `paste` 捕获阶段。
 
-2. **打开 HTML 文件自动转 Markdown**
-   「文件 → 打开」（或 `Ctrl/⌘+O`、文件树双击）选择 `.html` / `.htm` 文件时，Rust 端按扩展名识别为 `html`，前端用 `turndown` 转换后载入。
-
-3. **打开 Word（.docx）文件自动转 Markdown**
-   打开 `.docx` 文件时，Rust 端读取字节并以 base64 传回，前端用 `mammoth` 先把 docx 转成 HTML，再经 `turndown` 转成 Markdown 载入。
-
-**安全行为**：HTML / DOCX 这类「被转换」的文档，载入时**不会带上原文件路径**，而是作为**全新的未保存草稿**（文件名自动改为 `.md`，例如 `report.html → report.md`）。这样直接 `Ctrl/⌘+S` 时会弹出「另存为」让你选择 `.md` 保存位置，**绝不会把 Markdown 内容覆盖写回你的原始 `.html` / `.docx`**（否则会破坏 docx 文件）。普通的 `.md` / `.txt` 仍按原路径正常打开。
-
-> 转换由 `src/utils/import.ts`（`htmlToMarkdown` / `docxToMarkdown` / `importToMarkdown` 分发器）统一完成；所有打开入口（菜单、侧栏文件树、快速打开、命令面板）都走 `useFilesStore().openFile`，因此转换一致生效。
+> **打开文件只支持 `.md` / 纯文本**：「打开文件 / 打开文件夹」仅导入 Markdown 文件（打开文件夹时侧栏文件树**只列出 `.md`**），其它扩展名（如旧的 `.html` / `.docx`）不再做导入转换，避免误改原文件。
 
 ### 7.6 导出功能
 
@@ -256,7 +250,9 @@ npm run tauri build
 ### 7.7 侧边栏：大纲 + 文件树
 
 - **大纲面板**（`Ctrl/⌘+⇧+1`）：按 H1–H6 列出文档结构，点击定位滚动。
-- **文件树**（`Ctrl/⌘+⇧+3`）：「文件 → 打开文件夹」后显示目录树，点击其中的 Markdown/HTML/Word 文档即可打开（自动走导入转换）。
+- **文件树**（`Ctrl/⌘+⇧+3`）：分为上下两部分。
+  - **上半「最近」**：显示最近打开的文档，**最多 10 条**（Rust 端与界面双重限制），点击即可打开。
+  - **下半「目录」**：点击文件夹或「打开文件夹」后呈现**可逐级展开 / 收起的精致目录树**，仅列出其中的 `.md` 文件与子目录（目录由系统 API 返回，天然适配 Windows / macOS / Linux 的路径与分隔符风格）；点击文件打开，点击文件夹展开其下内容。
 
 ### 7.8 源码模式
 
@@ -273,7 +269,7 @@ npm run tauri build
 
 ### 7.11 主题与语言
 
-- 主题：「GitHub Light」（亮色）/「Nord Dark」（暗色），可在「主题」菜单或偏好设置中切换，颜色经 CSS 变量统一注入。
+- 主题：内置 6 套（GitHub / Gothic / Newsprint / Night / Pixyll / Whitey），可在「主题」菜单或偏好设置中切换，颜色经 CSS 变量统一注入；亮/暗主题会同步切换代码块的 CodeMirror 高亮。
 - 语言：简体中文 / 繁體中文 / English，设置后即时生效并持久化。
 
 ### 7.12 专注 / 打字机 / 全屏模式
@@ -343,7 +339,7 @@ npm run tauri build
 | `Alt + ⇧ + 5` | 删除线 |
 | `Ctrl/⌘ + ⇧ + \`` | 行内代码 |
 | `Ctrl/⌘ + K` | 插入链接 |
-| `Ctrl/⌘ + U` | 下划线（占位提示） |
+| `Ctrl/⌘ + U` | 下划线（真实 `<u>` 标记） |
 | `Ctrl/⌘ + \` | 清除样式 |
 
 ### 视图
@@ -367,7 +363,8 @@ npm run tauri build
 - **统一命令层**：`src/commands/actions.ts` 是菜单、工具栏、快捷键、命令面板共用的唯一实现入口；ProseMirror 底层命令在 `src/commands/prose.ts`。
 - **主题**：颜色通过 `styles/variables.css` 的 CSS 变量流动；切换主题 = 设置 `<html data-theme>` + 加载对应 CSS。
 - **Milkdown 插件**：`src/milkdown/plugins/*` 在 Crepe 之上提供数学、图表、高亮、图片、表格等增强；Crepe 本身提供带完整 Markdown 往返的 WYSIWYG 基础节点。
-- **导入转换**：`src/utils/import.ts` 与编辑器的 `paste` 监听（在 `src/milkdown/setup.ts`）共同完成 HTML/DOCX → Markdown。
+- **图片相对路径与渲染**：磁盘上的 Markdown 始终保存**相对**引用（`./assets/xxx.png`）；打开文档时再把这些本地引用通过 `convertFileSrc` 转成 `asset://` 绝对地址交给 WebView 渲染（否则相对路径会相对页面地址而非文档目录，导致无法加载）；**保存时**把远程（`http/https`）、`data:`、粘贴/拖拽的在线图片下载到 `<文档目录>/assets/` 并改写引用，确保文件可移植且下次打开能渲染。远程图片下载在 **Rust 端用 `reqwest`** 完成，以规避 WebView 的跨域（CORS）限制。实现见 `src/utils/images.ts` 与 `src-tauri/src/commands/asset.rs` 的 `fetch_remote_image`。
+- **导入转换（粘贴）**：`src/utils/import.ts` 的 `htmlToMarkdown` 与编辑器 `paste` 监听（在 `src/milkdown/setup.ts`）共同完成 HTML → Markdown；文件导入仅支持 `.md` / 纯文本。
 
 ---
 
@@ -389,7 +386,6 @@ npm run tauri build
 - **Word 导出**中数学公式以 LaTeX 源码文本呈现（尚无 OMML 转换）。
 - 导出的独立 HTML 中，Mermaid 图以围栏代码块保留（实时编辑器会渲染它）；离线把 Mermaid 烘焙成 SVG 是后续增强项。
 - 多窗口、应用内窗口切换、开发者工具等部分菜单项为占位/提示，v1 暂未开放。
-- 下划线（Underline）非标准 Markdown 语法，v1 暂不真正支持（菜单会给出提示）。
 
 ---
 

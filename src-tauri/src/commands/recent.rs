@@ -5,8 +5,9 @@ use tauri::{AppHandle, State};
 use crate::models::RecentItem;
 use crate::state::{now_ms, AppState};
 
-/// Maximum number of recent-file entries kept.
-const MAX_RECENT: usize = 20;
+/// Maximum number of recent-file entries kept. The sidebar shows at most this
+/// many recent file names (the UI also slices defensively).
+const MAX_RECENT: usize = 10;
 
 /// Whether a path points at a Markdown file (`.md` / `.markdown`, case-insensitive).
 fn is_markdown(path: &str) -> bool {

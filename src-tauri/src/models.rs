@@ -67,6 +67,17 @@ impl Default for Settings {
     }
 }
 
+/// The bytes of a remotely-fetched image plus a guessed extension.
+///
+/// Returned by `fetch_remote_image` so the frontend can persist a network image
+/// next to the document and rewrite the Markdown reference to a local path.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteImage {
+    pub data: Vec<u8>,
+    pub ext: String,
+}
+
 /// Result of a save operation.
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

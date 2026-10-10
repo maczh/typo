@@ -118,7 +118,7 @@ export default {
     whenInsertLocalImage: '当插入本地图片时',
     noSpecialOp: '无特殊操作',
     copyToCurrentFolder: '复制到当前文件夹',
-    copyToAssetsRelative: '复制到 ./assets 并设置相对路径',
+    copyToAssetsRelative: '复制到同名 _imgs 目录并设置相对路径',
     setImageRoot: '设置图片根目录',
     globalImageSettings: '全局图像设置…',
     insertFromIPhone: '从 iPhone 插入',
@@ -138,6 +138,7 @@ export default {
     newFile: '新建文件',
     empty: '（空）',
     recent: '最近',
+    directory: '目录',
   },
   outline: {
     empty: '暂无标题',

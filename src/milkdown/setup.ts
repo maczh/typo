@@ -9,6 +9,7 @@ import { mermaidDiagramPlugin } from './plugins/mermaid'
 import { markdownMarkerPlugin } from './plugins/markdownMarker'
 import { underline, underlineRemark } from './plugins/underline'
 import { htmlToMarkdown } from '@/utils/import'
+import { persistImageFile } from '@/utils/images'
 
 /** A thin, stable wrapper around a Crepe editor instance. */
 export interface EditorInstance {
@@ -77,6 +78,24 @@ function crepeConfig(root: HTMLElement, defaultValue: string) {
         noResultText: t('editor.codeNoResult'),
         previewToggleText: (previewOnlyMode: boolean) =>
           previewOnlyMode ? t('editor.codePreviewEdit') : t('editor.codePreviewHide'),
+      },
+      'image-block': {
+        // Persist pasted / dropped / uploaded image files to `<docDir>/assets` and
+        // insert an absolute `asset://` URL. Without an `onUpload`, Crepe falls
+        // back to `URL.createObjectURL(file)` — a `blob:` URL that cannot be read
+        // back when saving (blocked by CSP) and is dead after a reload.
+        onUpload: async (file: File): Promise<string> => {
+          let docPath: string | null = null
+          try {
+            // Dynamic import keeps this store out of the editor's boot graph
+            // (a static import would create a module-init cycle during mount).
+            const { useEditorStore } = await import('@/stores/editor')
+            docPath = useEditorStore().doc.path
+          } catch {
+            docPath = null
+          }
+          return persistImageFile(file, docPath)
+        },
       },
     },
   }

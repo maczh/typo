@@ -1,27 +1,19 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFilesStore } from '@/stores/files'
 import * as A from '@/commands/actions'
+import TreeItem from './TreeItem.vue'
 
 const { t } = useI18n()
 const files = useFilesStore()
 
-onMounted(() => {
-  if (files.currentDir) void files.refreshTree(files.currentDir)
-})
+// The sidebar only ever shows at most the 10 most-recent files (Rust also caps
+// the stored list at 10; this slice is a defensive UI guard).
+const recentFiles = computed(() => files.recent.slice(0, 10))
 
-/** Whether a file name looks like a Markdown file (`.md` / `.markdown`). */
-function isMarkdown(name: string): boolean {
-  return /\.(md|markdown)$/i.test(name)
-}
-
-function openItem(path: string): void {
+function openRecent(path: string): void {
   void files.openFile(path)
-}
-
-function openDir(path: string): void {
-  void files.refreshTree(path)
 }
 </script>
 
@@ -30,43 +22,45 @@ function openDir(path: string): void {
     <div class="tree-actions">
       <button class="btn" @click="A.openFileDialog">{{ t('menu.open') }}</button>
       <button class="icon-btn" :title="t('sidebar.openFolder')" @click="files.openFolder">
-        📁
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+          <path
+            d="M1.5 3.5h4l1.2 1.3h7.3a.8.8 0 0 1 .8.8v6.6a.8.8 0 0 1-.8.8H1.5a.8.8 0 0 1-.8-.8V4.3a.8.8 0 0 1 .8-.8z"
+            fill="currentColor"
+          />
+        </svg>
       </button>
     </div>
 
     <div v-if="files.currentDir" class="breadcrumb" :title="files.currentDir">
-      📂 {{ files.currentDir }}
+      {{ files.currentDir }}
     </div>
 
     <div class="section-title">{{ t('sidebar.recent') }}</div>
     <ul class="list">
       <li
-        v-for="r in files.recent"
+        v-for="r in recentFiles"
         :key="r.path"
         class="entry"
         :title="r.path"
-        @click="openItem(r.path)"
+        @click="openRecent(r.path)"
       >
-        📄 {{ r.name }}
+        <span class="dot" />
+        <span class="name">{{ r.name }}</span>
       </li>
-      <li v-if="!files.recent.length" class="empty">{{ t('sidebar.empty') }}</li>
+      <li v-if="!recentFiles.length" class="empty">{{ t('sidebar.empty') }}</li>
     </ul>
 
-    <div class="section-title">{{ t('sidebar.files') }}</div>
-    <ul class="list">
-      <li
+    <div class="section-title">{{ t('sidebar.directory') }}</div>
+    <div v-if="files.currentDir" class="tree">
+      <TreeItem
         v-for="item in files.tree"
-        v-show="item.isDir || isMarkdown(item.name)"
         :key="item.path"
-        class="entry"
-        :class="{ dir: item.isDir }"
-        :title="item.path"
-        @click="item.isDir ? openDir(item.path) : openItem(item.path)"
-      >
-        {{ item.isDir ? '📁' : '📄' }} {{ item.name }}
-      </li>
-      <li v-if="!files.tree.length" class="empty">{{ t('sidebar.empty') }}</li>
-    </ul>
+        :item="item"
+        :depth="0"
+      />
+      <div v-if="!files.tree.length" class="empty">{{ t('sidebar.empty') }}</div>
+    </div>
+    <div v-else class="empty hint">{{ t('sidebar.openFolder') }}…</div>
   </div>
 </template>
 
@@ -99,6 +93,9 @@ function openDir(path: string): void {
   border-radius: 4px;
   padding: 4px 8px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .icon-btn:hover {
   background: var(--accent-soft);
@@ -124,19 +121,38 @@ function openDir(path: string): void {
   padding: 0;
 }
 .entry {
-  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
   border-radius: 4px;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 .entry:hover {
   background: var(--accent-soft);
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: 0 0 auto;
+}
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tree {
+  margin-top: 2px;
 }
 .empty {
   padding: 4px 6px;
   font-size: 12px;
   color: var(--fg-muted);
+}
+.hint {
+  font-style: italic;
 }
 </style>

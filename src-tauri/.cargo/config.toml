@@ -17,3 +17,10 @@
 
 [target.x86_64-unknown-linux-gnu]
 rustflags = []
+
+# Cross-compile a portable Windows amd64 .exe from macOS (no installer / --no-bundle).
+# The MinGW-w64 toolchain is installed via `brew install mingw-w64`, which provides
+# x86_64-w64-mingw32-{gcc,ar,windres} on PATH.
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+ar = "x86_64-w64-mingw32-ar"

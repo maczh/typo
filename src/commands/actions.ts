@@ -24,7 +24,9 @@ import { insertMath } from '@/milkdown/plugins/latex'
 import { insertDiagram } from '@/milkdown/plugins/mermaid'
 import { insertImage } from '@/milkdown/plugins/image'
 import { insert } from '@milkdown/utils'
-import { dirname } from '@/utils/file'
+import { dirname, nativeJoin } from '@/utils/file'
+import { prepareImagesForSave } from '@/utils/images'
+import { convertFileSrc } from '@tauri-apps/api/core'
 import * as prose from './prose'
 import type { Lang } from '@/types'
 
@@ -87,27 +89,54 @@ export function quickOpen(): void {
   useUI().openQuickOpen()
 }
 
+/**
+ * Persist embedded images next to the document and rewrite the Markdown so the
+ * on-disk file keeps portable relative refs while the live editor keeps absolute
+ * `asset://` URLs (which actually render). Then save to `path` and return the
+ * resulting file identity.
+ */
+async function persistAndSave(
+  save: (content: string) => Promise<{ path: string; name?: string }>,
+  path: string,
+): Promise<{ path: string; name?: string }> {
+  const content = await getMarkdown()
+  const prepared = await prepareImagesForSave(content, path)
+  const ed = useMilkdown().getEditor()
+  for (const m of prepared.displayMappings) prose.replaceImageSrc(ed, m.old, m.display)
+  if (prepared.errors > 0) {
+    showToast(
+      `有 ${prepared.errors} 张图片未能保存到本地（网络或读取失败），已保留原链接`,
+      'error',
+    )
+  }
+  return save(prepared.content)
+}
+
 export async function saveFile(): Promise<void> {
   if (!requireTauri('保存')) return
-  const content = await getMarkdown()
   const editor = useEditorStore()
   if (!editor.doc.path) {
     await saveFileAs()
     return
   }
-  await useTauri().saveFile(editor.doc.path, content)
+  await persistAndSave(
+    async (content) => {
+      const r = await useTauri().saveFile(editor.doc.path as string, content)
+      return { path: r.path }
+    },
+    editor.doc.path,
+  )
   editor.markSaved()
 }
 
 export async function saveFileAs(): Promise<void> {
   if (!requireTauri('另存为')) return
-  const content = await getMarkdown()
   const editor = useEditorStore()
   const path = await useTauri().pickSave(editor.doc.name || 'untitled.md')
   if (!path) return
-  const res = await useTauri().saveFileAs(path, content)
+  const res = await persistAndSave((content) => useTauri().saveFileAs(path, content), path)
   editor.doc.path = res.path
-  editor.doc.name = res.name
+  editor.doc.name = res.name ?? (path.split(/[\\/]/).pop() || 'untitled.md')
   editor.markSaved()
   await useFilesStore().addRecent(res.path)
 }
@@ -505,8 +534,11 @@ export function pickAndInsertImage(): void {
     if (editor.doc.path && isTauri()) {
       try {
         const buf = await file.arrayBuffer()
-        const rel = await useTauri().writeAsset(dirname(editor.doc.path), filename, new Uint8Array(buf))
-        insertImage(e, `./${rel}`, file.name)
+        const rel = await useTauri().writeAsset(editor.doc.path, filename, new Uint8Array(buf))
+        // Insert an absolute `asset://` URL so the webview can render it right
+        // away; the on-disk file keeps a relative `./assets/…` ref after saving.
+        const abs = nativeJoin(dirname(editor.doc.path), rel)
+        insertImage(e, convertFileSrc(abs), file.name)
         return
       } catch {
         /* fall through to data-url */
@@ -630,7 +662,7 @@ export function setImageInsertMode(mode: 'none' | 'current' | 'assets'): void {
     /* ignore */
   }
   const label =
-    mode === 'current' ? '复制到当前文件夹' : mode === 'assets' ? '复制到 ./assets' : '无特殊操作'
+    mode === 'current' ? '复制到当前文件夹' : mode === 'assets' ? '复制到同名 _imgs 目录' : '无特殊操作'
   showToast(`图片插入方式：${label}`, 'info')
 }
 

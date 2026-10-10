@@ -39,6 +39,7 @@ pub fn run() {
             // asset
             commands::asset::write_asset,
             commands::asset::get_assets_dir,
+            commands::asset::fetch_remote_image,
             // settings
             commands::settings::load_settings,
             commands::settings::save_settings,

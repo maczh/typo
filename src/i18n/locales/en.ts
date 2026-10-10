@@ -118,7 +118,7 @@ export default {
     whenInsertLocalImage: 'When Inserting Local Image',
     noSpecialOp: 'No Special Operation',
     copyToCurrentFolder: 'Copy to Current Folder',
-    copyToAssetsRelative: 'Copy to ./assets & Set Relative Path',
+    copyToAssetsRelative: 'Copy to ./<name>_imgs & Set Relative Path',
     setImageRoot: 'Set Image Root',
     globalImageSettings: 'Global Image Settings…',
     insertFromIPhone: 'Insert from iPhone',
@@ -138,6 +138,7 @@ export default {
     newFile: 'New File',
     empty: '(empty)',
     recent: 'Recent',
+    directory: 'Directory',
   },
   outline: {
     empty: 'No headings yet',

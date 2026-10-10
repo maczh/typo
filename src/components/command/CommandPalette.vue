@@ -7,6 +7,7 @@ import { useFilesStore } from '@/stores/files'
 import { useSettingsStore } from '@/stores/settings'
 import { useTauri } from '@/composables/useTauri'
 import { useUI } from '@/composables/useUI'
+import * as A from '@/commands/actions'
 import { exportDocument } from '@/utils/exporter'
 import { insertMath } from '@/milkdown/plugins/latex'
 import { insertDiagram } from '@/milkdown/plugins/mermaid'
@@ -37,21 +38,10 @@ async function getMd(): Promise<string> {
   return await milkdown.getMarkdown()
 }
 async function save(): Promise<void> {
-  const content = await getMd()
-  if (!editor.doc.path) return void (await saveAs())
-  await tauri.saveFile(editor.doc.path, content)
-  editor.markSaved()
+  await A.saveFile()
 }
 async function saveAs(): Promise<void> {
-  const content = await getMd()
-  const path = await tauri.pickSave(editor.doc.name || 'untitled.md')
-  if (path) {
-    const res = await tauri.saveFileAs(path, content)
-    editor.doc.path = res.path
-    editor.doc.name = res.name
-    editor.markSaved()
-    await files.addRecent(res.path)
-  }
+  await A.saveFileAs()
 }
 async function doExport(format: ExportFormat): Promise<void> {
   const md = await getMd()

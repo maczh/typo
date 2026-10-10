@@ -764,3 +764,28 @@ export function focus(editor: Editor | null): void {
     view.focus()
   })
 }
+
+/**
+ * Replace the `src` of every image node that currently uses `oldSrc` with
+ * `newSrc`. Used after saving: the saved file keeps a relative `./assets/…`
+ * reference, but the live editor must keep the absolute `asset://` URL so the
+ * image keeps rendering without reloading the document.
+ */
+export function replaceImageSrc(editor: Editor | null, oldSrc: string, newSrc: string): void {
+  if (!editor || oldSrc === newSrc) return
+  runWithView(editor, (view) => {
+    const { state, dispatch } = view
+    const imgType = nodeType(state.schema, 'image', 'image_inline', 'img')
+    if (!imgType) return
+    let tr = state.tr
+    state.doc.descendants((node, pos) => {
+      if (node.type === imgType) {
+        const cur = (node.attrs as { src?: string }).src
+        if (cur === oldSrc) {
+          tr = tr.setNodeMarkup(pos, undefined, { ...node.attrs, src: newSrc })
+        }
+      }
+    })
+    if (tr.docChanged) dispatch(tr)
+  })
+}

@@ -9,7 +9,9 @@
     "build": "vue-tsc --noEmit && node scripts/prepare-build.cjs && vite build",
     "typecheck": "vue-tsc --noEmit",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "postinstall": "node scripts/patch-milkdown-image-block.mjs",
+    "patch:milkdown": "node scripts/patch-milkdown-image-block.mjs"
   },
   "dependencies": {
     "@milkdown/core": "^7.0.0",

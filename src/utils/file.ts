@@ -29,3 +29,16 @@ export function resolveAssetPath(docPath: string, assetRel: string): string {
   const dir = dirname(docPath)
   return `${dir}/${assetRel}`.replace(/\/+/g, '/')
 }
+
+/**
+ * Join a directory and a (possibly forward-slashed) relative path, using the
+ * directory's own separator so the result is a valid native absolute path
+ * (e.g. for `convertFileSrc`, which expects a real filesystem path).
+ */
+export function nativeJoin(dir: string, rel: string): string {
+  const sep = dir.includes('\\') ? '\\' : '/'
+  const normalized = rel.replace(/[\\/]+/g, sep)
+  if (!dir) return normalized
+  if (dir.endsWith(sep)) return dir + normalized
+  return dir + sep + normalized
+}

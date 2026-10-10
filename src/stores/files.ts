@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import type { FileItem, RecentItem } from '@/types'
 import { useTauri } from '@/composables/useTauri'
 import { dirname } from '@/utils/file'
+import { localizeMarkdown } from '@/utils/images'
 
 /**
  * Files store — directory tree, recent files and the current working directory.
@@ -28,9 +29,12 @@ export const useFilesStore = defineStore('files', () => {
     }
     const { useEditorStore } = await import('./editor')
     const editor = useEditorStore()
-    const content = result.content ?? ''
+    // Rewrite local image references to absolute `asset://` URLs so they render
+    // in the webview; the on-disk file keeps portable relative paths.
+    const content = localizeMarkdown(result.content ?? '', result.path)
     editor.loadFromText(content, result.path, result.name)
-    currentDir.value = dirname(path)
+    // Populate / focus the sidebar directory tree on this file's folder.
+    await refreshTree(dirname(path))
     await loadRecent()
   }
 
@@ -46,6 +50,19 @@ export const useFilesStore = defineStore('files', () => {
       tree.value = await tauri.listDir(dir)
     } catch {
       tree.value = []
+    }
+  }
+
+  /**
+   * List the immediate children of a directory (without touching the root tree).
+   * Used by the recursive sidebar tree to lazily expand folders.
+   */
+  async function fetchChildren(dir: string): Promise<FileItem[]> {
+    const tauri = useTauri()
+    try {
+      return await tauri.listDir(dir)
+    } catch {
+      return []
     }
   }
 
@@ -96,6 +113,7 @@ export const useFilesStore = defineStore('files', () => {
     openFile,
     newFile,
     refreshTree,
+    fetchChildren,
     loadRecent,
     addRecent,
     clearRecent,

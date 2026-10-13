@@ -51,3 +51,12 @@ WYSIWYG via **Milkdown/Crepe** (ProseMirror). Editor source-of-truth = Markdown 
   底层 PM 命令 `src/commands/prose.ts`；编辑器桥 `src/milkdown/setup.ts`
   （`loadMarkdown` 重建实例，`insert` 走 `@milkdown/utils` 的 `insert()` 解析 MD）。
 - 文件/对话框 Rust 在 `src-tauri/src/commands/file.rs`，经 `src/composables/useTauri.ts` 桥接。
+
+## 编辑器已剥离为独立组件包（2026-10-13）
+- **新项目**：`/home/macro/Work/js/src/github.com/maczh/typo-md-editor`
+  （`typo-md-editor@0.1.0`，Vue3 组件库 + demo，**零 Tauri 依赖**，本仓 typo 只作只读参考、未被修改）。
+- 解耦契约（改任一边都要守）：包内**从不写文件**（保存走 `@save` 事件、导出走浏览器 download/print）、
+  **从不落盘图片**（上传走 `onUpload` prop，默认 `data:` URL；本地 src 走 `resolveImageSrc`）、
+  设置存 `localStorage['typo-md-editor:settings']`、主题 kind 唯一事实源 `src/themes.ts`。
+- 本仓的桌面外壳（MenuBar/文件树/命令面板/自动保存恢复/useTauri 等）**不在**新包里。
+- 详见 `.workbuddy/memory/2026-10-13.md` 与新包 `docs/extraction-design.md`、`docs/deviations.md`。

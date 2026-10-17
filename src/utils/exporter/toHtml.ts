@@ -2,6 +2,10 @@ import { unified } from 'unified'
 import remarkParse from 'remark-parse'
 import remarkGfm from 'remark-gfm'
 import remarkRehype from 'remark-rehype'
+import rehypeRaw from 'rehype-raw'
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
+import type { Root as MdRoot, Nodes as MdNodes } from 'mdast'
+import type { Root as HtmlRoot, Element, RootContent } from 'hast'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeStringify from 'rehype-stringify'
 import katex from 'katex'
@@ -9,41 +13,68 @@ import katex from 'katex'
 import katexCss from 'katex/dist/katex.min.css?raw'
 import { escapeAttr } from '@/utils/markdown'
 
-/** Pre-render `$...$` and `$$...$$` math to KaTeX HTML before the MD pipeline. */
-async function renderMath(md: string): Promise<string> {
-  let out = md.replace(/\$\$([\s\S]+?)\$\$/g, (_m, expr: string) => {
-    try {
-      return `<div class="math-block">${katex.renderToString(expr.trim(), {
-        displayMode: true,
-        throwOnError: false,
-      })}</div>`
-    } catch {
-      return `<div class="math-block">$$${expr}$$</div>`
+/** Transform parsed text only: dollar signs in code must remain literal. */
+function remarkMath() {
+  return (tree: MdRoot) => {
+    function walk(node: MdNodes): void {
+      if (!('children' in node)) return
+      const children: MdNodes[] = []
+      for (const child of node.children) {
+        if (child.type !== 'text') { walk(child); children.push(child); continue }
+        const pattern = /\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g
+        let offset = 0
+        for (const match of child.value.matchAll(pattern)) {
+          if (match.index! > offset) children.push({ type: 'text', value: child.value.slice(offset, match.index) })
+          const display = match[1] !== undefined
+          children.push({ type: 'html', value: `<span class="math-${display ? 'block' : 'inline'}">${escapeAttr(match[1] ?? match[2])}</span>` })
+          offset = match.index! + match[0].length
+        }
+        children.push({ type: 'text', value: child.value.slice(offset) })
+      }
+      node.children = children as typeof node.children
     }
-  })
-  out = out.replace(/(^|[^$])\$([^$\n]+?)\$(?!\$)/g, (_m, pre: string, expr: string) => {
-    try {
-      return `${pre}<span class="math-inline">${katex.renderToString(expr.trim(), {
-        displayMode: false,
-        throwOnError: false,
-      })}</span>`
-    } catch {
-      return `${pre}<span class="math-inline">$${expr}$</span>`
+    walk(tree)
+  }
+}
+
+/** Only trusted KaTeX output is introduced after the HTML sanitizer. */
+function rehypeMath() {
+  return (tree: HtmlRoot) => {
+    function walk(node: HtmlRoot | Element): void {
+      node.children = node.children.map((child): RootContent => {
+        if (child.type !== 'element') return child
+        const classes = child.properties.className
+        if (child.tagName === 'span' && Array.isArray(classes) && classes.some(c => c === 'math-inline' || c === 'math-block')) {
+          const expr = child.children.filter(c => c.type === 'text').map(c => c.value).join('')
+          const display = classes.includes('math-block')
+          return { type: 'raw', value: `<span class="math-${display ? 'block' : 'inline'}">${katex.renderToString(expr.trim(), { displayMode: display, throwOnError: false, trust: false })}</span>` }
+        }
+        walk(child)
+        return child
+      }) as typeof node.children
     }
-  })
-  return out
+    walk(tree)
+  }
 }
 
 /** Convert Markdown to a self-contained HTML document (offline-friendly). */
 export async function toHtml(markdown: string, title = 'Document'): Promise<string> {
-  const withMath = await renderMath(markdown)
   const file = await unified()
     .use(remarkParse)
     .use(remarkGfm)
+    .use(remarkMath)
     .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeRaw)
+    .use(rehypeSanitize, {
+      ...defaultSchema,
+      tagNames: [...(defaultSchema.tagNames ?? []), 'u'],
+      attributes: { ...defaultSchema.attributes, span: [['className', 'math-inline', 'math-block']] },
+      protocols: { ...defaultSchema.protocols, src: ['http', 'https', 'data', 'asset', 'file'] },
+    })
+    .use(rehypeMath)
     .use(rehypeHighlight, { detect: true, ignoreMissing: true })
     .use(rehypeStringify, { allowDangerousHtml: true })
-    .process(withMath)
+    .process(markdown)
   const body = String(file)
   return wrapHtml(body, title)
 }
@@ -53,6 +84,7 @@ function wrapHtml(body: string, title: string): string {
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src data: asset: file: http: https:; font-src data:; base-uri 'none'; form-action 'none'" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeAttr(title)}</title>
 <style>${katexCss}</style>
@@ -65,7 +97,7 @@ function wrapHtml(body: string, title: string): string {
   table { border-collapse: collapse; width: 100%; }
   th, td { border: 1px solid #d0d7de; padding: 6px 10px; }
   img { max-width: 100%; }
-  .math-block { text-align: center; overflow: auto; }
+  .math-block { display: block; text-align: center; overflow: auto; }
   .mermaid { text-align: center; }
 </style>
 </head>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { blockPositionAtY } from '@/commands/prose'
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMilkdown } from '@/composables/useMilkdown'
@@ -29,6 +30,7 @@ const MIN_WIDTH = 30
 const MAX_WIDTH = 100
 const DEFAULT_WIDTH = 80
 const dragging = ref(false)
+let stopResize: (() => void) | undefined
 
 function clampWidth(pct: number): number {
   return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, pct))
@@ -52,6 +54,7 @@ function resetWidth(): void {
  */
 function onResizeStart(event: PointerEvent): void {
   if (!paneEl.value) return
+  stopResize?.()
   event.preventDefault()
   const paneWidth = paneEl.value.clientWidth || 1
   const startX = event.clientX
@@ -69,13 +72,18 @@ function onResizeStart(event: PointerEvent): void {
     document.body.style.userSelect = ''
     window.removeEventListener('pointermove', onMove)
     window.removeEventListener('pointerup', onUp)
+    window.removeEventListener('pointercancel', onUp)
+    stopResize = undefined
     void settingsStore.persist()
   }
+  stopResize = onUp
+  window.addEventListener('pointercancel', onUp)
   window.addEventListener('pointermove', onMove)
   window.addEventListener('pointerup', onUp)
 }
 
 async function handleChange(md: string): Promise<void> {
+  if (ui.sourceMode.value) return
   editorStore.updateContent(md)
   editorStore.setOutline(buildOutlineFromMarkdown(md))
 }
@@ -115,7 +123,7 @@ function onContextMenu(e: MouseEvent): void {
  * The block handle at the start of each line: a short press (no drag) on its
  * drag grip opens the same menu, pre-targeted at that block's style submenu.
  */
-let handlePress: { x: number; y: number; el: HTMLElement } | null = null
+let handlePress: { x: number; y: number; el: HTMLElement; pos: number | null } | null = null
 
 function onHandlePointerDown(e: PointerEvent): void {
   const target = e.target as HTMLElement | null
@@ -131,7 +139,8 @@ function onHandlePointerDown(e: PointerEvent): void {
     handlePress = null
     return
   }
-  handlePress = { x: e.clientX, y: e.clientY, el: handle }
+  const editor = milkdown.getEditor()
+  handlePress = { x: e.clientX, y: e.clientY, el: handle, pos: editor ? blockPositionAtY(editor, e.clientY) : null }
 }
 
 function onHandlePointerUp(e: PointerEvent): void {
@@ -143,7 +152,7 @@ function onHandlePointerUp(e: PointerEvent): void {
   const editor = milkdown.getEditor()
   if (!editor) return
   const rect = press.el.getBoundingClientRect()
-  const pos = posAtCoords(editor, { left: rect.right + 8, top: rect.top + rect.height / 2 })
+  const pos = press.pos
   if (pos == null) return
   setCaret(editor, pos)
   // Remember the range: the handle lives outside the editor DOM, so the click on
@@ -155,16 +164,31 @@ function onHandlePointerUp(e: PointerEvent): void {
   })
 }
 
+function loadDocument(): void {
+  milkdown.loadMarkdown(editorStore.doc.content)
+  // Milkdown canonicalizes Markdown (for example, it appends a newline).
+  // Establish the clean baseline in that same representation for undo tracking.
+  if (milkdown.isReady.value && !ui.sourceMode.value && !editorStore.doc.dirty) {
+    const markdown = milkdown.getMarkdown()
+    if (typeof markdown === 'string') {
+      editorStore.updateContent(markdown)
+      editorStore.markSaved(markdown)
+    }
+  }
+  editorStore.setOutline(buildOutlineFromMarkdown(editorStore.doc.content))
+}
+
 onMounted(async () => {
   document.addEventListener('contextmenu', onContextMenu, true)
   document.addEventListener('pointerdown', onHandlePointerDown, true)
   document.addEventListener('pointerup', onHandlePointerUp, true)
   if (!container.value) return
   await milkdown.mount(container.value, editorStore.doc.content, handleChange)
-  editorStore.setOutline(buildOutlineFromMarkdown(editorStore.doc.content))
+  loadDocument()
 })
 
 onBeforeUnmount(() => {
+  stopResize?.()
   document.removeEventListener('contextmenu', onContextMenu, true)
   document.removeEventListener('pointerdown', onHandlePointerDown, true)
   document.removeEventListener('pointerup', onHandlePointerUp, true)
@@ -187,8 +211,7 @@ watch(
 watch(
   () => editorStore.loadSignal,
   () => {
-    milkdown.loadMarkdown(editorStore.doc.content)
-    editorStore.setOutline(buildOutlineFromMarkdown(editorStore.doc.content))
+    loadDocument()
   },
 )
 </script>

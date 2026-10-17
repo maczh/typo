@@ -15,6 +15,7 @@ export const useEditorStore = defineStore('editor', () => {
     savedAt: null,
   })
 
+  let savedContent: string | null = ''
   const outline = ref<OutlineNode[]>([])
   const cursor = ref({ line: 1, col: 1 })
   const wordCount = ref(0)
@@ -28,12 +29,13 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   /** Replace the whole document (open / new). */
-  function loadFromText(text: string, path: string | null = null, name = 'untitled.md'): void {
+  function loadFromText(text: string, path: string | null = null, name = 'untitled.md', dirty = false): void {
+    savedContent = dirty ? null : text
     doc.value = {
       path,
       name,
       content: text,
-      dirty: false,
+      dirty,
       savedAt: Date.now(),
     }
     updateWordCount(text)
@@ -43,12 +45,13 @@ export const useEditorStore = defineStore('editor', () => {
   /** Called by the editor on every content change. */
   function updateContent(md: string): void {
     doc.value.content = md
-    doc.value.dirty = true
+    doc.value.dirty = md !== savedContent
     updateWordCount(md)
   }
 
-  function markSaved(): void {
-    doc.value.dirty = false
+  function markSaved(content = doc.value.content): void {
+    savedContent = content
+    doc.value.dirty = doc.value.content !== savedContent
     doc.value.savedAt = Date.now()
   }
 

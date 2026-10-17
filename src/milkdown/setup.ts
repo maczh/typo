@@ -1,12 +1,17 @@
+import { configureEditorKeymaps } from './keymaps'
 import { Crepe } from '@milkdown/crepe'
 import type { Editor } from '@milkdown/core'
 import { editorViewCtx } from '@milkdown/core'
 import type { EditorView } from '@milkdown/prose/view'
-import { insert, getHTML as getHTMLCommand } from '@milkdown/utils'
+import { replaceAll, insert, getHTML as getHTMLCommand } from '@milkdown/utils'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { i18n } from '@/i18n'
 import { mermaidDiagramPlugin } from './plugins/mermaid'
 import { markdownMarkerPlugin } from './plugins/markdownMarker'
+import { remarkInlineLinkPlugin } from '@milkdown/preset-commonmark'
+import { footnoteReference, footnoteDefinition } from './plugins/footnote'
+import { frontMatter, frontMatterRemark } from './plugins/frontMatter'
+import { referenceDefinition, referenceLinks } from './plugins/reference'
 import { underline, underlineRemark } from './plugins/underline'
 import { htmlToMarkdown } from '@/utils/import'
 import { persistImageFile } from '@/utils/images'
@@ -15,7 +20,7 @@ import { persistImageFile } from '@/utils/images'
 export interface EditorInstance {
   getMarkdown: () => Promise<string> | string
   getHTML: () => Promise<string> | string
-  loadMarkdown: (markdown: string) => void
+  loadMarkdown: (markdown: string, resetHistory?: boolean) => void
   destroy: () => void
   insert: (markdown: string) => void
   getEditor: () => Editor | null
@@ -116,11 +121,13 @@ export async function createEditor(
 ): Promise<EditorInstance> {
   let crepe: Crepe | null = null
   let loading = false
+  let loadedMarkdown: string | null = null
 
   const attach = (instance: Crepe) => {
     instance.on((api) => {
       api.markdownUpdated((_ctx, markdown) => {
-        if (loading) return
+        if (loading || markdown === loadedMarkdown) return
+        loadedMarkdown = null
         options.onChange?.(markdown)
       })
     })
@@ -133,9 +140,17 @@ export async function createEditor(
       editor.use(mermaidDiagramPlugin)
       editor.use(markdownMarkerPlugin)
       // Real `underline` mark + its `<u>…</u>` markdown round-trip.
+      editor.remove(remarkInlineLinkPlugin)
+      editor.use(footnoteReference)
+      editor.use(footnoteDefinition)
+      editor.use(frontMatter)
+      editor.use(frontMatterRemark)
+      editor.use(referenceDefinition)
+      editor.use(referenceLinks)
       editor.use(underline)
       editor.use(underlineRemark)
     })
+    instance.editor.config(configureEditorKeymaps)
     attach(instance)
     return instance
   }
@@ -144,14 +159,13 @@ export async function createEditor(
   loading = true
   await (crepe as unknown as { create: () => Promise<void> }).create()
   loading = false
+  loadedMarkdown = crepe.getMarkdown()
 
   // Paste with HTML flavour → Markdown. Captured on the container (ancestor of
   // the editable) in the *capture* phase so it runs before ProseMirror's own
   // paste handler, letting us replace the default rich-HTML insertion with a
   // Markdown round-trip. Plain-text paste is left untouched.
-  root.addEventListener(
-    'paste',
-    (e: ClipboardEvent) => {
+  const handlePaste = (e: ClipboardEvent) => {
       const dt = e.clipboardData
       if (!dt) return
       const html = dt.getData('text/html')
@@ -179,9 +193,8 @@ export async function createEditor(
         return
       }
       editor.action(insert(md))
-    },
-    true,
-  )
+    }
+  root.addEventListener('paste', handlePaste, true)
 
   const getMarkdown = (): Promise<string> | string =>
     crepe ? (crepe as unknown as { getMarkdown: () => Promise<string> }).getMarkdown() : ''
@@ -192,23 +205,25 @@ export async function createEditor(
     if (!editor) return
     editor.action(insert(markdown))
   }
-  const loadMarkdown = (markdown: string) => {
+  const loadMarkdown = (markdown: string, resetHistory = true) => {
     if (!crepe) return
-    void (crepe as unknown as { destroy: () => void }).destroy()
-    crepe = spawn(markdown)
+    const editor = getCoreEditor(crepe)
+    if (!editor) return
     loading = true
-    void (crepe as unknown as { create: () => Promise<void> })
-      .create()
-      .then(() => {
-        loading = false
-      })
+    try {
+      editor.action(replaceAll(markdown, resetHistory))
+      loadedMarkdown = crepe.getMarkdown()
+    } finally {
+      loading = false
+    }
   }
   const destroy = () => {
+    root.removeEventListener('paste', handlePaste, true)
     ;(crepe as unknown as { destroy: () => void } | null)?.destroy()
     crepe = null
   }
   const focus = () => {
-    root.focus()
+    getCoreEditor(crepe)?.action(ctx => ctx.get(editorViewCtx).focus())
   }
   const getEditor = (): Editor | null => getCoreEditor(crepe)
 

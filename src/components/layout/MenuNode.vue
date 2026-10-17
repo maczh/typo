@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { menuViewport as vMenuViewport } from '@/directives/menuViewport'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { MenuItem } from './menuTypes'
@@ -28,11 +29,12 @@ function isDisabled(): boolean {
 
 function click(): void {
   if (isDisabled()) return
+  if (props.item.sub) { open.value = !open.value; return }
   if (props.item.id) props.onRun(props.item.id)
 }
 
 function showSub(): void {
-  if (props.item.sub) open.value = true
+  if (props.item.sub && !isDisabled()) open.value = true
 }
 function hideSub(): void {
   open.value = false
@@ -55,6 +57,7 @@ function hideSub(): void {
     <button
       type="button"
       class="menu-item-btn"
+      :data-command="item.id"
       :class="{ checked: item.checked ? item.checked() : false }"
       :disabled="isDisabled()"
       @click.stop="click"
@@ -67,7 +70,7 @@ function hideSub(): void {
 
     <div
       v-if="item.sub && open"
-      class="sub-menu"
+      v-menu-viewport="true" class="sub-menu"
     >
       <MenuNode
         v-for="child in item.sub"

@@ -4,6 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { useTauri } from '@/composables/useTauri'
 import { useUI } from '@/composables/useUI'
+import { confirmDiscard } from '@/utils/documentGuard'
+import { localizeMarkdown } from '@/utils/images'
+import { basename } from '@/utils/file'
 import type { RecoveryItem } from '@/types'
 
 const { t } = useI18n()
@@ -20,15 +23,14 @@ onMounted(async () => {
   }
 })
 
-function basename(p: string): string {
-  return p.split('/').pop() || p
-}
-
 async function recover(item: RecoveryItem): Promise<void> {
+  if (!await confirmDiscard()) return
+  const session = editor.loadSignal
+  const content = editor.doc.content
   try {
     const res = await tauri.openFile(item.backup_path)
-    editor.loadFromText(res.content, item.doc_path, basename(item.doc_path))
-    await tauri.clearRecovery(item.doc_path)
+    if (session !== editor.loadSignal || content !== editor.doc.content) return
+    editor.loadFromText(localizeMarkdown(res.content, item.doc_path), item.doc_path, basename(item.doc_path), true)
     items.value = items.value.filter((i) => i.doc_path !== item.doc_path)
   } catch {
     /* ignore */
@@ -40,7 +42,7 @@ async function ignore(item: RecoveryItem): Promise<void> {
   try {
     await tauri.clearRecovery(item.doc_path)
   } catch {
-    /* ignore */
+    return
   }
   items.value = items.value.filter((i) => i.doc_path !== item.doc_path)
   if (!items.value.length) ui.closeRecovery()

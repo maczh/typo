@@ -36,7 +36,7 @@ pub async fn autosave(
     let hash = hash_path(&doc_path);
     let backup_path = dir.join(format!("{}.md", hash));
     let backup_str = backup_path.to_string_lossy().to_string();
-    fs::write(&backup_path, content).map_err(|e| e.to_string())?;
+    crate::atomic_file::write(&backup_path, content.as_bytes()).map_err(|e| e.to_string())?;
 
     {
         let mut idx = state
@@ -60,7 +60,7 @@ pub async fn check_recovery(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Vec<RecoveryItem>, String> {
-    let dir = backup_dir(&app)?;
+    backup_dir(&app)?;
     let idx = state
         .backup_index
         .lock()
@@ -81,16 +81,15 @@ pub async fn check_recovery(
             .unwrap_or(0);
 
         // If the original file is missing or is newer-or-equal, no recovery needed.
-        let original_newer = Path::new(doc_path).exists()
-            && {
-                let orig = fs::metadata(doc_path)
-                    .ok()
-                    .and_then(|m| m.modified().ok())
-                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                    .map(|d| d.as_millis() as u64)
-                    .unwrap_or(0);
-                orig >= backup_time
-            };
+        let original_newer = Path::new(doc_path).exists() && {
+            let orig = fs::metadata(doc_path)
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            orig >= backup_time
+        };
 
         if !original_newer {
             items.push(RecoveryItem {
@@ -113,7 +112,11 @@ pub async fn clear_recovery(
     let hash = hash_path(&doc_path);
     let dir = backup_dir(&app)?;
     let backup_path = dir.join(format!("{}.md", hash));
-    let _ = fs::remove_file(&backup_path);
+    match fs::remove_file(&backup_path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.to_string()),
+    }
     {
         let mut idx = state
             .backup_index

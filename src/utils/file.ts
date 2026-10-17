@@ -4,7 +4,10 @@
 export function dirname(path: string): string {
   const norm = path.replace(/\\/g, '/')
   const idx = norm.lastIndexOf('/')
-  return idx <= 0 ? '.' : norm.slice(0, idx)
+  if (idx < 0) return '.'
+  if (idx === 0) return '/'
+  if (idx === 2 && /^[a-z]:/i.test(norm)) return norm.slice(0, 3)
+  return norm.slice(0, idx)
 }
 
 /** Return the file name portion of a path. */
@@ -35,10 +38,22 @@ export function resolveAssetPath(docPath: string, assetRel: string): string {
  * directory's own separator so the result is a valid native absolute path
  * (e.g. for `convertFileSrc`, which expects a real filesystem path).
  */
+export function normalizeFsPath(path: string): string {
+  const norm = path.replace(/\\/g, '/')
+  const prefix = norm.startsWith('//') ? '//' : /^[a-z]:\//i.test(norm) ? norm.slice(0, 3) : norm.startsWith('/') ? '/' : ''
+  const segments: string[] = []
+  const protectedSegments = prefix === '//' ? 2 : 0
+  for (const part of norm.slice(prefix.length).split('/')) {
+    if (!part || part === '.') continue
+    if (part === '..' && segments.length > protectedSegments && segments.at(-1) !== '..') segments.pop()
+    else if (part !== '..' || !prefix) segments.push(part)
+  }
+  return prefix + segments.join('/') || '.'
+}
+
 export function nativeJoin(dir: string, rel: string): string {
-  const sep = dir.includes('\\') ? '\\' : '/'
-  const normalized = rel.replace(/[\\/]+/g, sep)
-  if (!dir) return normalized
-  if (dir.endsWith(sep)) return dir + normalized
-  return dir + sep + normalized
+  const absolute = /^(?:[a-z]:[\\/]|[\\/])/i.test(rel)
+  const sep = (absolute ? rel : dir).includes('\\') ? '\\' : '/'
+  const joined = absolute || !dir ? rel : `${dir}${/[\\/]$/.test(dir) ? '' : '/'}${rel}`
+  return normalizeFsPath(joined).replace(/\//g, sep)
 }

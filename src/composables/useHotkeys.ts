@@ -13,9 +13,7 @@ import type { HotkeySpec } from '@/types'
  *
  * Design notes:
  * - `metaKey` is treated as `ctrlKey` so the same bindings work on macOS.
- * - Commands the ProseMirror editor owns natively (bold/italic/undo/redo/cut/
- *   copy/paste/selectAll) are registered *display-only* (no `run`) — the editor
- *   handles them, so we only show their shortcut and never double-toggle.
+ * - Editing commands run in capture phase before the editor keymap.
  * - `global: true` bindings (save, open, find, …) also fire while typing in
  *   inputs/textareas; everything else is suppressed when a field is focused so it
  *   only acts inside the editor.
@@ -42,6 +40,11 @@ function h(n: number): () => void {
 }
 
 export const COMMAND_DEFS: CommandDef[] = [
+  { id: 'insertLocalImage', labelKey: 'menu.insertLocalImage', default: { ctrl: true, shift: true, key: 'i' }, run: A.insertLocalImage },
+  { id: 'image-remote', labelKey: 'menu.insertRemoteImage', default: { ctrl: true, alt: true, key: 'i' }, run: A.insertRemoteImage },
+  { id: 'indent-list', labelKey: 'menu.indent', default: { ctrl: true, key: ']' }, run: A.indentList },
+  { id: 'outdent-list', labelKey: 'menu.outdent', default: { ctrl: true, key: '[' }, run: A.outdentList },
+
   // ── File / global ───────────────────────────────────────────────
   { id: 'new', labelKey: 'menu.new', default: { ctrl: true, key: 'n' }, run: A.newFile, global: true },
   { id: 'open', labelKey: 'menu.open', default: { ctrl: true, key: 'o' }, run: A.openFileDialog, global: true },
@@ -54,7 +57,7 @@ export const COMMAND_DEFS: CommandDef[] = [
   { id: 'close', labelKey: 'menu.close', default: { ctrl: true, key: 'w' }, run: A.closeWindow, global: true },
   { id: 'sourceMode', labelKey: 'menu.sourceMode', default: { ctrl: true, key: '/' }, run: A.toggleSourceMode, global: true },
   { id: 'find', labelKey: 'menu.find', default: { ctrl: true, key: 'f' }, run: A.openFind, global: true },
-  { id: 'replace', labelKey: 'menu.replace', default: { ctrl: true, key: 'h' }, run: A.openFind, global: true },
+  { id: 'replace', labelKey: 'menu.replace', default: { ctrl: true, key: 'h' }, run: A.openReplace, global: true },
   { id: 'toggleSidebar', labelKey: 'menu.toggleSidebar', default: { ctrl: true, shift: true, key: 'l' }, run: A.toggleSidebar },
 
   // ── Paragraph / blocks ──────────────────────────────────────────
@@ -99,23 +102,23 @@ export const COMMAND_DEFS: CommandDef[] = [
   { id: 'zoomIn', labelKey: 'menu.zoomIn', default: { ctrl: true, shift: true, key: '=' }, run: A.zoomIn },
   { id: 'zoomOut', labelKey: 'menu.zoomOut', default: { ctrl: true, shift: true, key: '-' }, run: A.zoomOut },
 
-  // ── Editor-native (display-only; the editor handles these) ──────
-  { id: 'bold', labelKey: 'menu.bold', default: { ctrl: true, key: 'b' } },
-  { id: 'italic', labelKey: 'menu.italic', default: { ctrl: true, key: 'i' } },
-  { id: 'undo', labelKey: 'menu.undo', default: { ctrl: true, key: 'z' } },
-  { id: 'redo', labelKey: 'menu.redo', default: { ctrl: true, key: 'y' } },
-  { id: 'cut', labelKey: 'menu.cut', default: { ctrl: true, key: 'x' } },
-  { id: 'copy', labelKey: 'menu.copy', default: { ctrl: true, key: 'c' } },
-  { id: 'paste', labelKey: 'menu.paste', default: { ctrl: true, key: 'v' } },
-  { id: 'selectAll', labelKey: 'menu.selectAll', default: { ctrl: true, key: 'a' } },
+  // ── Editing commands (dispatched before the editor keymap) ──────
+  { id: 'bold', labelKey: 'menu.bold', default: { ctrl: true, key: 'b' }, run: A.toggleBold },
+  { id: 'italic', labelKey: 'menu.italic', default: { ctrl: true, key: 'i' }, run: A.toggleItalic },
+  { id: 'undo', labelKey: 'menu.undo', default: { ctrl: true, key: 'z' }, run: A.undo },
+  { id: 'redo', labelKey: 'menu.redo', default: { ctrl: true, key: 'y' }, run: A.redo },
+  { id: 'cut', labelKey: 'menu.cut', default: { ctrl: true, key: 'x' }, run: A.cut },
+  { id: 'copy', labelKey: 'menu.copy', default: { ctrl: true, key: 'c' }, run: A.copySelection },
+  { id: 'paste', labelKey: 'menu.paste', default: { ctrl: true, key: 'v' }, run: A.paste },
+  { id: 'selectAll', labelKey: 'menu.selectAll', default: { ctrl: true, key: 'a' }, run: A.selectAll },
 
-  // ── Table submenu (display hints; not yet bound to the editor) ──
-  { id: 'table-row-below', labelKey: 'ctx.rowBelow', default: { ctrl: true, key: 'enter' } },
-  { id: 'table-move-row-up', labelKey: 'ctx.moveRowUp', default: { alt: true, ctrl: true, key: 'arrowup' } },
-  { id: 'table-move-row-down', labelKey: 'ctx.moveRowDown', default: { alt: true, ctrl: true, key: 'arrowdown' } },
-  { id: 'table-move-col-left', labelKey: 'ctx.moveColLeft', default: { alt: true, ctrl: true, key: 'arrowleft' } },
-  { id: 'table-move-col-right', labelKey: 'ctx.moveColRight', default: { alt: true, ctrl: true, key: 'arrowright' } },
-  { id: 'table-del-row', labelKey: 'ctx.deleteRow', default: { ctrl: true, shift: true, key: 'backspace' } },
+  // ── Table submenu ──
+  { id: 'table-row-below', labelKey: 'ctx.rowBelow', default: { ctrl: true, key: 'enter' }, run: A.tableRowBelow },
+  { id: 'table-move-row-up', labelKey: 'ctx.moveRowUp', default: { alt: true, ctrl: true, key: 'arrowup' }, run: A.tableMoveRowUp },
+  { id: 'table-move-row-down', labelKey: 'ctx.moveRowDown', default: { alt: true, ctrl: true, key: 'arrowdown' }, run: A.tableMoveRowDown },
+  { id: 'table-move-col-left', labelKey: 'ctx.moveColLeft', default: { alt: true, ctrl: true, key: 'arrowleft' }, run: A.tableMoveColLeft },
+  { id: 'table-move-col-right', labelKey: 'ctx.moveColRight', default: { alt: true, ctrl: true, key: 'arrowright' }, run: A.tableMoveColRight },
+  { id: 'table-del-row', labelKey: 'ctx.deleteRow', default: { ctrl: true, shift: true, key: 'backspace' }, run: A.tableDeleteRow },
 ]
 
 /** Default bindings keyed by command id. */
@@ -140,9 +143,14 @@ export function getEffectiveHotkeys(): Record<string, HotkeySpec> {
   } catch {
     overrides = undefined
   }
-  const o = overrides || {}
   const out: Record<string, HotkeySpec> = {}
-  for (const d of COMMAND_DEFS) out[d.id] = o[d.id] ?? d.default
+  // Resolve persisted conflicts deterministically too (older versions allowed them).
+  // Explicit overrides take priority over defaults.
+  const ordered = [...COMMAND_DEFS].sort((a, b) => Number(!!overrides?.[b.id]) - Number(!!overrides?.[a.id]))
+  for (const d of ordered) {
+    const candidate = overrides?.[d.id] ?? d.default
+    if (!Object.values(out).some((used) => sameHotkey(used, candidate))) out[d.id] = candidate
+  }
   return out
 }
 
@@ -183,13 +191,24 @@ export function hk(id: string): string {
 
 /** True when two specs describe the same physical binding. */
 export function sameHotkey(a: HotkeySpec, b: HotkeySpec): boolean {
-  return (
-    !!a.ctrl === !!b.ctrl &&
-    !!a.shift === !!b.shift &&
-    !!a.alt === !!b.alt &&
-    (a.code || '') === (b.code || '') &&
-    (a.key || '').toLowerCase() === (b.key || '').toLowerCase()
-  )
+  return !!a.ctrl === !!b.ctrl && !!a.shift === !!b.shift && !!a.alt === !!b.alt &&
+    physicalKey(a) === physicalKey(b)
+
+}
+
+function physicalKey(spec: HotkeySpec): string {
+  if (spec.code) return spec.code.toLowerCase()
+  const key = (spec.key || '').toLowerCase()
+  if (/^[a-z]$/.test(key)) return `key${key}`
+  if (/^[0-9]$/.test(key)) return `digit${key}`
+  const punctuation: Record<string, string> = { '`': 'backquote', '[': 'bracketleft', ']': 'bracketright', '=': 'equal', '-': 'minus', '/': 'slash', '\\': 'backslash', ',': 'comma' }
+  return punctuation[key] || key
+}
+
+export function matchesHotkey(e: KeyboardEvent, spec: HotkeySpec): boolean {
+  if (!!spec.ctrl !== (e.ctrlKey || e.metaKey) || !!spec.shift !== e.shiftKey || !!spec.alt !== e.altKey) return false
+  return physicalKey(spec) === (e.code || '').toLowerCase() ||
+    (!spec.code && spec.key?.toLowerCase() === e.key.toLowerCase())
 }
 
 /**
@@ -202,7 +221,8 @@ export function specFromEvent(e: KeyboardEvent): HotkeySpec | null {
   const shift = e.shiftKey
   const alt = e.altKey
   if (e.code === 'Backquote') return { ctrl, shift, alt, key: '`', code: 'Backquote' }
-  const k = e.key.toLowerCase()
+  const baseKeys: Record<string, string> = { Equal: '=', Minus: '-', BracketLeft: '[', BracketRight: ']', Slash: '/', Backslash: '\\', Comma: ',' }
+  const k = baseKeys[e.code] || (/^Digit[0-9]$/.test(e.code) ? e.code.slice(5) : /^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : e.key.toLowerCase())
   if (['control', 'meta', 'shift', 'alt'].includes(k)) return null
   return { ctrl, shift, alt, key: k }
 }
@@ -230,22 +250,15 @@ export function useHotkeys(): void {
   const ui = useUI()
 
   function handler(e: KeyboardEvent): void {
-    const ctrl = e.ctrlKey || e.metaKey
-    const shift = e.shiftKey
-    const alt = e.altKey
-    const key = e.key.toLowerCase()
+    if (e.isComposing || e.key === 'Process' || ui.settingsOpen.value) return
 
+    const sourceEditing = (e.target as HTMLElement | null)?.classList?.contains('source-textarea')
     const effective = getEffectiveHotkeys()
     for (const def of COMMAND_DEFS) {
       if (!def.run) continue // display-only
       const spec = effective[def.id]
       if (!spec) continue
-      if (!!spec.ctrl !== ctrl) continue
-      if (!!spec.shift !== shift) continue
-      if (!!spec.alt !== alt) continue
-      if (spec.code) {
-        if (spec.code !== e.code) continue
-      } else if (spec.key !== key) continue
+      if (!matchesHotkey(e, spec)) continue
 
       const dialogsOpen =
         ui.commandPaletteOpen.value ||
@@ -254,17 +267,25 @@ export function useHotkeys(): void {
         ui.settingsOpen.value ||
         ui.recoveryOpen.value
       // While a modal dialog is open, only Save is permitted.
-      if (dialogsOpen && !(ctrl && key === 's')) return
+      if (dialogsOpen && def.id !== 'save') return
 
       // Non-global bindings only act when not typing in a field (i.e. in editor).
-      if (!def.global && isField(e.target)) return
+      if (!def.global && isField(e.target) && !(sourceEditing && ['undo', 'redo', 'cut', 'copy', 'paste', 'selectAll', 'copyAsMarkdown', 'pastePlain'].includes(def.id))) return
 
+      if (['cut', 'copy', 'paste'].includes(def.id) && sameHotkey(spec, def.default)) return
       e.preventDefault()
+      e.stopImmediatePropagation()
       void def.run()
       return
     }
+    // Suppress obsolete editor-native aliases after a binding has been changed.
+    if (((!isField(e.target) || sourceEditing) && COMMAND_DEFS.some((d) => matchesHotkey(e, d.default))) ||
+        (sourceEditing && (e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'KeyZ')) {
+      e.preventDefault()
+      e.stopImmediatePropagation()
+    }
   }
 
-  onMounted(() => window.addEventListener('keydown', handler))
-  onBeforeUnmount(() => window.removeEventListener('keydown', handler))
+  onMounted(() => window.addEventListener('keydown', handler, true))
+  onBeforeUnmount(() => window.removeEventListener('keydown', handler, true))
 }

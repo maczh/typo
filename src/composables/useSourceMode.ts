@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { computed } from 'vue'
 import { useMilkdown } from '@/composables/useMilkdown'
 import { useEditorStore } from '@/stores/editor'
 import { useUI } from '@/composables/useUI'
@@ -13,18 +13,29 @@ export function useSourceMode() {
   const milkdown = useMilkdown()
   const editor = useEditorStore()
   const ui = useUI()
-  const sourceText = ref('')
+  const sourceText = computed({
+    get: () => editor.doc.content,
+    set: (md: string) => {
+      editor.updateContent(md)
+      editor.setOutline(buildOutlineFromMarkdown(md))
+    },
+  })
 
   async function enter(): Promise<void> {
+    const session = editor.loadSignal
+    const content = editor.doc.content
     const md = await milkdown.getMarkdown()
-    sourceText.value = typeof md === 'string' ? md : editor.doc.content
+    if (session === editor.loadSignal && ui.sourceMode.value && editor.doc.content === content && typeof md === 'string') {
+      const wasDirty = editor.doc.dirty
+      editor.updateContent(md)
+      if (!wasDirty) editor.markSaved(md)
+    }
   }
 
   async function commit(): Promise<void> {
     const md = sourceText.value
-    editor.updateContent(md)
     editor.setOutline(buildOutlineFromMarkdown(md))
-    await milkdown.loadMarkdown(md)
+    await milkdown.loadMarkdown(md, false)
   }
 
   return { sourceText, enter, commit }

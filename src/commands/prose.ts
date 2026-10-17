@@ -1,5 +1,5 @@
 import type { Editor } from '@milkdown/core'
-import { commandsCtx, editorViewCtx } from '@milkdown/core'
+import { commandsCtx, editorViewCtx, serializerCtx } from '@milkdown/core'
 import { toggleInlineCodeCommand } from '@milkdown/preset-commonmark'
 import type { EditorView } from '@milkdown/prose/view'
 import type { Node as PMNode, NodeType, MarkType } from '@milkdown/prose/model'
@@ -9,6 +9,7 @@ import {
   setBlockType,
   toggleMark,
   wrapIn,
+  lift,
   selectAll as pmSelectAll,
   deleteSelection as pmDeleteSelection,
 } from '@milkdown/prose/commands'
@@ -59,10 +60,57 @@ function markType(schema: EditorState['schema'], ...names: string[]): MarkType |
 /* Block commands                                                      */
 /* ------------------------------------------------------------------ */
 
+/** Split the enclosing list so a style change affects only the current item. */
+function convertListItem(
+  view: EditorView,
+  build: (item: PMNode, list: PMNode) => PMNode[],
+): boolean {
+  const { state } = view
+  const { $from } = state.selection
+  for (let depth = $from.depth; depth > 1; depth--) {
+    const item = $from.node(depth)
+    const list = $from.node(depth - 1)
+    if (item.type.name !== 'list_item' || !['bullet_list', 'ordered_list'].includes(list.type.name)) continue
+    const index = $from.index(depth - 1)
+    const siblings: PMNode[] = []
+    list.forEach(child => siblings.push(child))
+    const replacement: PMNode[] = []
+    if (index > 0) replacement.push(list.copy(Fragment.fromArray(siblings.slice(0, index))))
+    const offset = replacement.reduce((size, node) => size + node.nodeSize, 0)
+    replacement.push(...build(item, list))
+    if (index + 1 < siblings.length) {
+      const attrs = list.type.name === 'ordered_list'
+        ? { ...list.attrs, order: Number(list.attrs.order) + index + 1 }
+        : list.attrs
+      replacement.push(list.type.create(attrs, siblings.slice(index + 1), list.marks))
+    }
+    const parent = $from.node(depth - 2)
+    const parentIndex = $from.index(depth - 2)
+    if (!parent.canReplace(parentIndex, parentIndex + 1, Fragment.fromArray(replacement))) return false
+    const start = $from.before(depth - 1)
+    const tr = state.tr.replaceWith(start, start + list.nodeSize, replacement)
+    tr.setSelection(TextSelection.near(tr.doc.resolve(start + offset + 1)))
+    view.dispatch(tr.scrollIntoView())
+    view.focus()
+    return true
+  }
+  return false
+}
+
+function itemBlocks(item: PMNode): PMNode[] {
+  const blocks: PMNode[] = []
+  item.forEach(child => blocks.push(child))
+  return blocks
+}
+
 export function setHeading(editor: Editor, level: number): void {
   runWithView(editor, (view) => {
     const h = nodeType(view.state.schema, 'heading')
     if (!h) return
+    if (convertListItem(view, item => {
+      const [first, ...rest] = itemBlocks(item)
+      return [h.create({ level }, first.content, first.marks), ...rest]
+    })) return
     setBlockType(h, { level })(view.state, view.dispatch)
   })
 }
@@ -71,6 +119,7 @@ export function setParagraph(editor: Editor): void {
   runWithView(editor, (view) => {
     const p = nodeType(view.state.schema, 'paragraph')
     if (!p) return
+    if (convertListItem(view, item => itemBlocks(item))) return
     setBlockType(p)(view.state, view.dispatch)
   })
 }
@@ -91,30 +140,61 @@ export function bumpHeading(editor: Editor, delta: number): void {
   })
 }
 
-export function toggleBulletList(editor: Editor): void {
+function toggleList(editor: Editor, name: 'bullet_list' | 'ordered_list', task = false): void {
   runWithView(editor, (view) => {
-    const t = nodeType(view.state.schema, 'bullet_list')
-    if (t) wrapInList(t)(view.state, view.dispatch)
+    if (convertListItem(view, (item, list) => {
+      if (!task && list.type.name === name && item.attrs.checked == null) return itemBlocks(item)
+      const type = view.state.schema.nodes[name]
+      const checked = task && item.attrs.checked == null ? false : null
+      const converted = item.type.create({
+        ...item.attrs,
+        checked,
+        listType: name === 'ordered_list' ? 'ordered' : 'bullet',
+      }, item.content, item.marks)
+      return [type.create({ spread: list.attrs.spread }, converted)]
+    })) return
+    const type = view.state.schema.nodes[name]
+    if (!type || !wrapInList(type)(view.state, view.dispatch) || !task) return
+    const tr = view.state.tr
+    const { $from: selected } = tr.selection
+    for (let d = selected.depth; d > 0; d--) {
+      const node = selected.node(d)
+      if (node.type.name === 'list_item') tr.setNodeMarkup(selected.before(d), undefined, { ...node.attrs, checked: false })
+    }
+    tr.doc.nodesBetween(tr.selection.from, tr.selection.to, (node, pos) => {
+      if (node.type.name === 'list_item') tr.setNodeMarkup(pos, undefined, { ...node.attrs, checked: false })
+    })
+    view.dispatch(tr)
   })
 }
 
-export function toggleOrderedList(editor: Editor): void {
-  runWithView(editor, (view) => {
-    const t = nodeType(view.state.schema, 'ordered_list')
-    if (t) wrapInList(t)(view.state, view.dispatch)
-  })
-}
+export function toggleBulletList(editor: Editor): void { toggleList(editor, 'bullet_list') }
+export function toggleOrderedList(editor: Editor): void { toggleList(editor, 'ordered_list') }
+export function toggleTaskList(editor: Editor): void { toggleList(editor, 'bullet_list', true) }
 
-export function toggleTaskList(editor: Editor): void {
-  // GFM task list — inserting the marker text at the caret is the most
-  // predictable path (the input rule builds the task_list_item node).
-  editor.action(insert('- [ ] '))
+export function isTaskList(editor: Editor | null): boolean {
+  if (!editor) return false
+  let active = false
+  runWithView(editor, (view) => {
+    const { $from } = view.state.selection
+    for (let d = $from.depth; d > 0; d--) {
+      const node = $from.node(d)
+      if (node.type.name === 'list_item' && node.attrs.checked != null) active = true
+    }
+  })
+  return active
 }
 
 export function toggleBlockquote(editor: Editor): void {
   runWithView(editor, (view) => {
-    const t = nodeType(view.state.schema, 'blockquote')
-    if (t) wrapIn(t)(view.state, view.dispatch)
+    const quote = view.state.schema.nodes.blockquote
+    if (quote && convertListItem(view, item => [quote.create(null, item.content)])) return
+    const { $from } = view.state.selection
+    for (let d = $from.depth; d > 0; d--) {
+      if ($from.node(d).type.name === 'blockquote') { lift(view.state, view.dispatch); return }
+    }
+    const type = nodeType(view.state.schema, 'blockquote')
+    if (type) wrapIn(type)(view.state, view.dispatch)
   })
 }
 
@@ -464,7 +544,10 @@ export function clearFormatting(editor: Editor): void {
 /* ------------------------------------------------------------------ */
 
 export function insertHorizontalRule(editor: Editor): void {
-  editor.action(insert('\n---\n\n'))
+  runWithView(editor, (view) => {
+    const hr = nodeType(view.state.schema, 'hr', 'horizontal_rule')
+    if (hr) view.dispatch(view.state.tr.replaceSelectionWith(hr.create()).scrollIntoView())
+  })
 }
 
 /**
@@ -492,11 +575,28 @@ export function insertLink(editor: Editor, text = '链接文本', url = 'https:/
 }
 
 export function insertFootnote(editor: Editor): void {
-  editor.action(insert('[^1]'))
+  runWithView(editor, (view) => {
+    const { schema, doc, selection } = view.state
+    const reference = schema.nodes.footnote_reference
+    const definition = schema.nodes.footnote_definition
+    if (!reference || !definition) return
+    const used = new Set<string>()
+    doc.descendants(node => { if (node.type === definition) used.add(node.attrs.identifier) })
+    let number = 1
+    while (used.has(String(number))) number++
+    const identifier = String(number)
+    const content = schema.nodes.paragraph.create(null, schema.text('脚注内容'))
+    const tr = view.state.tr.insert(doc.content.size, definition.create({ identifier }, content))
+    tr.insert(selection.to, reference.create({ identifier }))
+    view.dispatch(tr.scrollIntoView())
+  })
 }
 
 export function insertLinkReference(editor: Editor): void {
-  editor.action(insert('\n[ref]: https://\n'))
+  runWithView(editor, (view) => {
+    const type = view.state.schema.nodes.reference_definition
+    if (type) view.dispatch(view.state.tr.replaceSelectionWith(type.create()).scrollIntoView())
+  })
 }
 
 export function insertComment(editor: Editor): void {
@@ -508,7 +608,12 @@ export function insertToc(editor: Editor): void {
 }
 
 export function insertYamlFrontMatter(editor: Editor): void {
-  editor.action(insert('---\ntitle: Untitled\ndate: \n---\n\n'))
+  runWithView(editor, (view) => {
+    const type = view.state.schema.nodes.front_matter
+    if (type && view.state.doc.firstChild?.type !== type) {
+      view.dispatch(view.state.tr.insert(0, type.create({ value: 'title: Untitled\ndate: ' })).scrollIntoView())
+    }
+  })
 }
 
 /* ------------------------------------------------------------------ */
@@ -803,21 +908,63 @@ export function focus(editor: Editor | null): void {
  * reference, but the live editor must keep the absolute `asset://` URL so the
  * image keeps rendering without reloading the document.
  */
-export function replaceImageSrc(editor: Editor | null, oldSrc: string, newSrc: string): void {
-  if (!editor || oldSrc === newSrc) return
+export function replaceImageSrc(editor: Editor | null, oldSrc: string, newSrc: string): number {
+  if (!editor || oldSrc === newSrc) return 0
+  let changed = 0
   runWithView(editor, (view) => {
-    const { state, dispatch } = view
-    const imgType = nodeType(state.schema, 'image', 'image_inline', 'img')
-    if (!imgType) return
-    let tr = state.tr
-    state.doc.descendants((node, pos) => {
-      if (node.type === imgType) {
-        const cur = (node.attrs as { src?: string }).src
-        if (cur === oldSrc) {
-          tr = tr.setNodeMarkup(pos, undefined, { ...node.attrs, src: newSrc })
-        }
+    let tr = view.state.tr
+    view.state.doc.descendants((node, pos) => {
+      if (['image', 'image_inline', 'img', 'image-block', 'image-inline'].includes(node.type.name) && node.attrs.src === oldSrc) {
+        tr = tr.setNodeMarkup(pos, undefined, { ...node.attrs, src: newSrc })
+        changed++
       }
     })
-    if (tr.docChanged) dispatch(tr)
+    if (tr.docChanged) view.dispatch(tr)
+  })
+  return changed
+}
+
+/** Serialize only the selected slice, retaining its inline Markdown marks. */
+export function getSelectionMarkdown(editor: Editor): string | null {
+  return editor.action((ctx) => {
+    const { state } = ctx.get(editorViewCtx)
+    if (state.selection.empty) return null
+    return ctx.get(serializerCtx)(state.schema.topNodeType.create(null, state.selection.content().content))
+  })
+}
+
+/** Resolve the text block beside a gutter handle, including individual list rows. */
+export function blockPositionAtY(editor: Editor, y: number): number | null {
+  let position: number | null = null
+  let distance = Infinity
+  runWithView(editor, (view) => {
+    view.state.doc.descendants((node, offset) => {
+      if (!node.isTextblock) return
+      const dom = view.nodeDOM(offset)
+      if (!(dom instanceof HTMLElement)) return
+      const rect = dom.getBoundingClientRect()
+      if (!rect.height) return
+      const delta = y < rect.top ? rect.top - y : y > rect.bottom ? y - rect.bottom : 0
+      if (delta < distance) { distance = delta; position = Math.min(offset + 1, offset + node.nodeSize - 1) }
+    })
+  })
+  return position
+}
+
+/** Persist a document image root as Typora-compatible front matter. */
+export function setImageRoot(editor: Editor, directory: string): void {
+  runWithView(editor, view => {
+    const type = view.state.schema.nodes.front_matter
+    if (!type) return
+    const first = view.state.doc.firstChild
+    const existing = first?.type === type ? String(first.attrs.value) : ''
+    const line = `typora-root-url: ${JSON.stringify(directory)}`
+    const value = /^typora-root-url:.*$/m.test(existing)
+      ? existing.replace(/^typora-root-url:.*$/m, () => line)
+      : [existing, line].filter(Boolean).join('\n')
+    const tr = first?.type === type
+      ? view.state.tr.setNodeMarkup(0, type, { value })
+      : view.state.tr.insert(0, type.create({ value }))
+    view.dispatch(tr)
   })
 }

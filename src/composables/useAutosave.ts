@@ -1,5 +1,4 @@
-import { ref } from 'vue'
-import { useMilkdown } from './useMilkdown'
+import { ref, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { useSettingsStore } from '@/stores/settings'
 import { useTauri } from './useTauri'
@@ -10,27 +9,31 @@ import { useTauri } from './useTauri'
  * is dirty and already has a path (so we can key the backup by path).
  */
 export function useAutosave() {
-  const milkdown = useMilkdown()
   const editor = useEditorStore()
   const settings = useSettingsStore()
   const tauri = useTauri()
   const timer = ref<number | null>(null)
 
+  let inFlight = false
+
   async function tick(): Promise<void> {
-    if (!settings.settings.autoSave) return
+    if (inFlight || !settings.settings.autoSave) return
     if (!editor.doc.dirty) return
     if (!editor.doc.path) return
-    const content = await milkdown.getMarkdown()
+    const { path, content } = editor.doc
+    inFlight = true
     try {
-      await tauri.autosave(editor.doc.path, content)
+      await tauri.autosave(path, content)
     } catch {
       /* non-fatal — backend may be unavailable in plain dev mode */
+    } finally {
+      inFlight = false
     }
   }
 
   function start(): void {
     stop()
-    const interval = Math.max(5000, settings.settings.autoSaveInterval)
+    const interval = Math.max(5000, Number(settings.settings.autoSaveInterval) || 30000)
     timer.value = window.setInterval(() => void tick(), interval)
   }
 
@@ -41,5 +44,6 @@ export function useAutosave() {
     }
   }
 
-  return { start, stop }
+  watch(() => settings.settings.autoSaveInterval, () => { if (timer.value !== null) start() })
+  return { start, stop, tick }
 }

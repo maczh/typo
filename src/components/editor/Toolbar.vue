@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { reactive, ref, onMounted, onBeforeUnmount } from 'vue'
+import { menuViewport as vMenuViewport } from '@/directives/menuViewport'
+import { computed, reactive, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as A from '@/commands/actions'
 import { hk } from '@/composables/useHotkeys'
@@ -42,7 +43,7 @@ function refresh(): void {
     active.paragraph = A.nodeActive('paragraph')
     active.bullet = A.nodeActive('bullet_list')
     active.ordered = A.nodeActive('ordered_list')
-    active.task = A.nodeActive('task_list') || A.nodeActive('bullet_list')
+    active.task = A.taskListActive()
     active.quote = A.nodeActive('blockquote')
     active.codeblock = A.nodeActive('code_block') || A.nodeActive('fence')
   })
@@ -88,7 +89,10 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKey)
 })
 
-const blockValue = ref('paragraph')
+const blockValue = computed(() => {
+  for (let i = 1; i <= 6; i++) if (active[`h${i}` as keyof typeof active]) return `h${i}`
+  return 'paragraph'
+})
 function onBlockChange(e: Event): void {
   const v = (e.target as HTMLSelectElement).value
   if (v === 'paragraph') A.setParagraph()
@@ -97,38 +101,38 @@ function onBlockChange(e: Event): void {
 
 interface ToolBtn {
   key: string
-  title: string
-  run: () => void
+  command: string
+  run: () => void | Promise<void>
   isActive?: () => boolean
 }
 
 const inlineBtns: ToolBtn[] = [
-  { key: 'bold', title: 'Ctrl+B', run: A.toggleBold, isActive: () => active.bold },
-  { key: 'italic', title: 'Ctrl+I', run: A.toggleItalic, isActive: () => active.italic },
-  { key: 'underline', title: 'Ctrl+U', run: A.toggleUnderline },
-  { key: 'strike', title: 'Alt+Shift+5', run: A.toggleStrike, isActive: () => active.strike },
-  { key: 'code', title: hk('inlineCode'), run: A.toggleInlineCode, isActive: () => active.code },
-  { key: 'link', title: hk('link'), run: A.insertHyperlink },
+  { key: 'bold', command: 'bold', run: A.toggleBold, isActive: () => active.bold },
+  { key: 'italic', command: 'italic', run: A.toggleItalic, isActive: () => active.italic },
+  { key: 'underline', command: 'underline', run: A.toggleUnderline },
+  { key: 'strike', command: 'strike', run: A.toggleStrike, isActive: () => active.strike },
+  { key: 'code', command: 'inlineCode', run: A.toggleInlineCode, isActive: () => active.code },
+  { key: 'link', command: 'link', run: A.insertHyperlink },
 ]
 
 const blockBtns: ToolBtn[] = [
-  { key: 'quote', title: 'Ctrl+Shift+Q', run: A.insertBlockquote, isActive: () => active.quote },
-  { key: 'bullet', title: 'Ctrl+Shift+]', run: A.insertUnorderedList, isActive: () => active.bullet },
-  { key: 'ordered', title: 'Ctrl+Shift+[', run: A.insertOrderedList, isActive: () => active.ordered },
-  { key: 'task', title: 'Ctrl+Shift+X', run: A.insertTaskList, isActive: () => active.task },
-  { key: 'table', title: 'Ctrl+T', run: A.insertTable },
-  { key: 'codeblock', title: 'Ctrl+Shift+K', run: A.insertCodeBlock, isActive: () => active.codeblock },
-  { key: 'math', title: 'Ctrl+Shift+M', run: A.insertMathBlock },
-  { key: 'diagram', title: 'Mermaid', run: A.insertDiagramBlock },
-  { key: 'image', title: 'Ctrl+Shift+I', run: A.insertLocalImage },
-  { key: 'source', title: 'Ctrl+/', run: A.toggleSourceMode },
+  { key: 'quote', command: 'quote', run: A.insertBlockquote, isActive: () => active.quote },
+  { key: 'bullet', command: 'unorderedList', run: A.insertUnorderedList, isActive: () => active.bullet },
+  { key: 'ordered', command: 'orderedList', run: A.insertOrderedList, isActive: () => active.ordered },
+  { key: 'task', command: 'taskList', run: A.insertTaskList, isActive: () => active.task },
+  { key: 'table', command: 'insertTable', run: A.insertTable },
+  { key: 'codeblock', command: 'codeBlock', run: A.insertCodeBlock, isActive: () => active.codeblock },
+  { key: 'math', command: 'mathBlock', run: A.insertMathBlock },
+  { key: 'diagram', command: '', run: A.insertDiagramBlock },
+  { key: 'image', command: 'insertLocalImage', run: A.insertLocalImage },
+  { key: 'source', command: 'sourceMode', run: A.toggleSourceMode },
 ]
 </script>
 
 <template>
-  <div class="toolbar">
-    <button class="tb-btn" :title="t('toolbar.undo')" @click="A.undo()">↶</button>
-    <button class="tb-btn" :title="t('toolbar.redo')" @click="A.redo()">↷</button>
+  <div class="toolbar" @mousedown="($event.target as HTMLElement).closest('button') && $event.preventDefault()">
+    <button class="tb-btn" :title="`${t('toolbar.undo')} (${hk('undo')})`" @click="A.undo()">↶</button>
+    <button class="tb-btn" :title="`${t('toolbar.redo')} (${hk('redo')})`" @click="A.redo()">↷</button>
 
     <span class="sep"></span>
 
@@ -142,9 +146,10 @@ const blockBtns: ToolBtn[] = [
     <button
       v-for="b in inlineBtns"
       :key="b.key"
+      :data-command="b.command"
       class="tb-btn"
       :class="{ active: b.isActive?.() }"
-      :title="`${t('toolbar.' + b.key)} (${b.title})`"
+      :title="`${t('toolbar.' + b.key)} (${hk(b.command)})`"
       @click="b.run()"
     >
       {{ b.key === 'bold' ? 'B' : b.key === 'italic' ? 'I' : b.key === 'underline' ? 'U' : b.key === 'strike' ? 'S' : b.key === 'code' ? '‹›' : '🔗' }}
@@ -160,7 +165,7 @@ const blockBtns: ToolBtn[] = [
           :title="`${t('toolbar.diagram')} (Mermaid)`"
           @click="toggleDiagram"
         >📊</button>
-        <div v-if="diagramOpen" class="tb-menu">
+        <div v-if="diagramOpen" v-menu-viewport class="tb-menu">
           <button
             v-for="d in MERMAID_TEMPLATES"
             :key="d.id"
@@ -175,9 +180,10 @@ const blockBtns: ToolBtn[] = [
       </span>
       <button
         v-else
+        :data-command="b.command"
         class="tb-btn"
         :class="{ active: b.isActive?.() }"
-        :title="`${t('toolbar.' + b.key)} (${b.title})`"
+        :title="`${t('toolbar.' + b.key)} (${hk(b.command)})`"
         @click="b.run()"
       >
         {{ b.key === 'quote' ? '❝' : b.key === 'bullet' ? '•' : b.key === 'ordered' ? '1.' : b.key === 'task' ? '☑' : b.key === 'table' ? '▦' : b.key === 'codeblock' ? '⤞' : b.key === 'math' ? '∑' : b.key === 'image' ? '🖼' : b.key === 'source' ? '⟨/⟩' : '' }}

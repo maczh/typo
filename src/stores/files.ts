@@ -1,3 +1,5 @@
+import { useEditorStore } from './editor'
+import { confirmDiscard } from '@/utils/documentGuard'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { FileItem, RecentItem } from '@/types'
@@ -19,16 +21,23 @@ export const useFilesStore = defineStore('files', () => {
   const recent = ref<RecentItem[]>([])
   const currentDir = ref<string>('')
 
+  let openRequest = 0
+  let treeRequest = 0
   async function openFile(path: string): Promise<void> {
+    const request = ++openRequest
+    const editor = useEditorStore()
+    if (!await confirmDiscard() || request !== openRequest) return
+    const session = editor.loadSignal
+    const previousContent = editor.doc.content
     const tauri = useTauri()
     const result = await tauri.openFile(path)
+    if (request !== openRequest || session !== editor.loadSignal || previousContent !== editor.doc.content) return
     try {
       await tauri.addRecent(path)
     } catch {
       /* non-fatal */
     }
-    const { useEditorStore } = await import('./editor')
-    const editor = useEditorStore()
+    if (request !== openRequest || session !== editor.loadSignal || previousContent !== editor.doc.content) return
     // Rewrite local image references to absolute `asset://` URLs so they render
     // in the webview; the on-disk file keeps portable relative paths.
     const content = localizeMarkdown(result.content ?? '', result.path)
@@ -39,17 +48,20 @@ export const useFilesStore = defineStore('files', () => {
   }
 
   async function newFile(): Promise<void> {
-    const { useEditorStore } = await import('./editor')
+    const request = ++openRequest
+    if (!await confirmDiscard() || request !== openRequest) return
     useEditorStore().loadFromText('', null, 'untitled.md')
   }
 
   async function refreshTree(dir: string): Promise<void> {
+    const request = ++treeRequest
     const tauri = useTauri()
     currentDir.value = dir
     try {
-      tree.value = await tauri.listDir(dir)
+      const result = await tauri.listDir(dir)
+      if (request === treeRequest) tree.value = result
     } catch {
-      tree.value = []
+      if (request === treeRequest) tree.value = []
     }
   }
 

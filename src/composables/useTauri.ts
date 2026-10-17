@@ -60,7 +60,7 @@ export function useTauri() {
     pickDir: () => call<string | null>('pick_dir'),
     deleteFile: (path: string) => call<void>('delete_file', { path }),
     writeAsset: (docPath: string, filename: string, data: Uint8Array | number[]) =>
-      call<string>('write_asset', { docPath, filename, data }),
+      call<string>('write_asset', { docPath, filename, data, currentFolder: localStorage.getItem('typo-image-insert-mode') === 'current' }),
     getAssetsDir: (docPath: string) =>
       call<string>('get_assets_dir', { docPath }),
     loadSettings: () => call<Settings>('load_settings'),

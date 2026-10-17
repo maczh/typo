@@ -99,7 +99,7 @@ function resetOne(id: string): void {
   draft[id] = { ...DEFAULT_HOTKEYS[id] }
 }
 function resetAll(): void {
-  initDraft()
+  for (const def of REBINDABLE) draft[def.id] = { ...def.default }
   conflict.value = ''
 }
 
@@ -107,6 +107,14 @@ const displayKey = (id: string): string =>
   formatHotkey(draft[id]) || t('dialog.settings.noShortcut')
 
 async function save(): Promise<void> {
+  for (const [id, spec] of Object.entries(draft)) {
+    const other = Object.keys(draft).find((key) => key !== id && sameHotkey(spec, draft[key]))
+    if (other) {
+      const def = REBINDABLE.find((d) => d.id === other)
+      conflict.value = t('dialog.settings.conflict', { name: def ? t(def.labelKey) : other })
+      return
+    }
+  }
   // Persist only the overrides that differ from the built-in defaults.
   const overrides: Record<string, HotkeySpec> = {}
   for (const def of REBINDABLE) {

@@ -1,0 +1,662 @@
+[
+  {
+    "id": "new",
+    "label": "新建",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+N"
+  },
+  {
+    "id": "newWindow",
+    "label": "新建窗口",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "open",
+    "label": "打开…",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+O"
+  },
+  {
+    "id": "openFolder",
+    "label": "打开文件夹…",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+O"
+  },
+  {
+    "id": "quickOpen",
+    "label": "快速打开",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+P"
+  },
+  {
+    "id": "save",
+    "label": "保存",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+S"
+  },
+  {
+    "id": "saveAs",
+    "label": "另存为…",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+S"
+  },
+  {
+    "id": "close",
+    "label": "关闭",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+W"
+  },
+  {
+    "id": "recent",
+    "label": "最近文件",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "export",
+    "label": "导出",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "export-md",
+    "label": "Markdown",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "export-html",
+    "label": "HTML",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "export-pdf",
+    "label": "PDF",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "preferences",
+    "label": "偏好设置",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+,"
+  },
+  {
+    "id": "undo",
+    "label": "撤销",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Z"
+  },
+  {
+    "id": "redo",
+    "label": "重做",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Y"
+  },
+  {
+    "id": "cut",
+    "label": "剪切",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+X"
+  },
+  {
+    "id": "copy",
+    "label": "复制",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+C"
+  },
+  {
+    "id": "paste",
+    "label": "粘贴",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+V"
+  },
+  {
+    "id": "copyAsMarkdown",
+    "label": "复制为 Markdown",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+D"
+  },
+  {
+    "id": "pastePlain",
+    "label": "粘贴为纯文本",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+V"
+  },
+  {
+    "id": "selectAll",
+    "label": "全选",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+A"
+  },
+  {
+    "id": "find",
+    "label": "查找",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+F"
+  },
+  {
+    "id": "replace",
+    "label": "替换",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+H"
+  },
+  {
+    "id": "h1",
+    "label": "一级标题",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+1"
+  },
+  {
+    "id": "h2",
+    "label": "二级标题",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+2"
+  },
+  {
+    "id": "h3",
+    "label": "三级标题",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+3"
+  },
+  {
+    "id": "h4",
+    "label": "四级标题",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+4"
+  },
+  {
+    "id": "h5",
+    "label": "五级标题",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+5"
+  },
+  {
+    "id": "h6",
+    "label": "六级标题",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+6"
+  },
+  {
+    "id": "paragraph",
+    "label": "段落",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+0"
+  },
+  {
+    "id": "incHeading",
+    "label": "提升标题级别",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+="
+  },
+  {
+    "id": "decHeading",
+    "label": "降低标题级别",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+-"
+  },
+  {
+    "id": "table-insert",
+    "label": "插入表格",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+T"
+  },
+  {
+    "id": "table-row-above",
+    "label": "上方插入行",
+    "disabled": true,
+    "shortcut": ""
+  },
+  {
+    "id": "table-row-below",
+    "label": "下方插入行",
+    "disabled": true,
+    "shortcut": "Ctrl/⌘+⏎"
+  },
+  {
+    "id": "table-col-left",
+    "label": "左侧插入列",
+    "disabled": true,
+    "shortcut": ""
+  },
+  {
+    "id": "table-col-right",
+    "label": "右侧插入列",
+    "disabled": true,
+    "shortcut": ""
+  },
+  {
+    "id": "table-move-row-up",
+    "label": "上移该行",
+    "disabled": true,
+    "shortcut": "Ctrl/⌘+Alt/⌥+↑"
+  },
+  {
+    "id": "table-move-row-down",
+    "label": "下移该行",
+    "disabled": true,
+    "shortcut": "Ctrl/⌘+Alt/⌥+↓"
+  },
+  {
+    "id": "table-move-col-left",
+    "label": "左移该列",
+    "disabled": true,
+    "shortcut": "Ctrl/⌘+Alt/⌥+←"
+  },
+  {
+    "id": "table-move-col-right",
+    "label": "右移该列",
+    "disabled": true,
+    "shortcut": "Ctrl/⌘+Alt/⌥+→"
+  },
+  {
+    "id": "table-del-row",
+    "label": "删除行",
+    "disabled": true,
+    "shortcut": "Ctrl/⌘+Shift/⇧+⌫"
+  },
+  {
+    "id": "table-del-col",
+    "label": "删除列",
+    "disabled": true,
+    "shortcut": ""
+  },
+  {
+    "id": "table-copy",
+    "label": "复制表格",
+    "disabled": true,
+    "shortcut": ""
+  },
+  {
+    "id": "table-format",
+    "label": "格式化表格源码",
+    "disabled": true,
+    "shortcut": ""
+  },
+  {
+    "id": "table-del",
+    "label": "删除表格",
+    "disabled": true,
+    "shortcut": ""
+  },
+  {
+    "id": "mathBlock",
+    "label": "插入公式",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+M"
+  },
+  {
+    "id": "codeBlock",
+    "label": "代码块",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+K"
+  },
+  {
+    "id": "copy-code",
+    "label": "复制代码块内容",
+    "disabled": true,
+    "shortcut": ""
+  },
+  {
+    "id": "indent-selection",
+    "label": "为选中内容调整缩进",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "indent-block",
+    "label": "为整个代码块调整缩进",
+    "disabled": true,
+    "shortcut": ""
+  },
+  {
+    "id": "alert-note",
+    "label": "注意",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "alert-tip",
+    "label": "提示",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "alert-important",
+    "label": "重要",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "alert-warning",
+    "label": "警告",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "alert-caution",
+    "label": "严重",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "quote",
+    "label": "引用",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+Q"
+  },
+  {
+    "id": "orderedList",
+    "label": "有序列表",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+["
+  },
+  {
+    "id": "unorderedList",
+    "label": "无序列表",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+]"
+  },
+  {
+    "id": "taskList",
+    "label": "任务列表",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+X"
+  },
+  {
+    "id": "indent-list",
+    "label": "缩进",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+]"
+  },
+  {
+    "id": "outdent-list",
+    "label": "减少缩进",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+["
+  },
+  {
+    "id": "insertParaAbove",
+    "label": "在上方插入段落",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "insertParaBelow",
+    "label": "在下方插入段落",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "linkReference",
+    "label": "链接引用",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Alt/⌥+L"
+  },
+  {
+    "id": "footnote",
+    "label": "脚注",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Alt/⌥+R"
+  },
+  {
+    "id": "horizontalRule",
+    "label": "水平分割线",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "toc",
+    "label": "内容目录",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "bold",
+    "label": "加粗",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+B"
+  },
+  {
+    "id": "italic",
+    "label": "斜体",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+I"
+  },
+  {
+    "id": "underline",
+    "label": "下划线",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+U"
+  },
+  {
+    "id": "inlineCode",
+    "label": "行内代码",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+`"
+  },
+  {
+    "id": "inlineMath",
+    "label": "内联公式",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+M"
+  },
+  {
+    "id": "strike",
+    "label": "删除线",
+    "disabled": false,
+    "shortcut": "Alt/⌥+Shift/⇧+5"
+  },
+  {
+    "id": "comment",
+    "label": "注释",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "link",
+    "label": "链接",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+K"
+  },
+  {
+    "id": "image-remote",
+    "label": "插入图片",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Alt/⌥+I"
+  },
+  {
+    "id": "image-local",
+    "label": "插入本地图片…",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+I"
+  },
+  {
+    "id": "image-location",
+    "label": "打开图片位置",
+    "disabled": true,
+    "shortcut": ""
+  },
+  {
+    "id": "image-delete-file",
+    "label": "删除图片文件",
+    "disabled": true,
+    "shortcut": ""
+  },
+  {
+    "id": "image-copy-to",
+    "label": "复制图片到…",
+    "disabled": true,
+    "shortcut": ""
+  },
+  {
+    "id": "image-rename-move",
+    "label": "重命名 / 移动图片到…",
+    "disabled": true,
+    "shortcut": ""
+  },
+  {
+    "id": "image-copy-all",
+    "label": "复制所有图片到…",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "image-move-all",
+    "label": "移动所有图片到…",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "image-reload-all",
+    "label": "重新加载所有图片",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "image-root",
+    "label": "设置图片根目录",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "image-global",
+    "label": "全局图像设置…",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "clearFormat",
+    "label": "清除格式",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+\\"
+  },
+  {
+    "id": "image-mode-none",
+    "label": "无特殊操作",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "image-mode-current",
+    "label": "复制到当前文件夹",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "image-mode-assets",
+    "label": "复制到同名 _imgs 目录并设置相对路径",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "sourceMode",
+    "label": "源码模式",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+/"
+  },
+  {
+    "id": "toggleSidebar",
+    "label": "切换侧栏",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+L"
+  },
+  {
+    "id": "outline",
+    "label": "切换大纲",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+1"
+  },
+  {
+    "id": "fileTree",
+    "label": "文件树",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+3"
+  },
+  {
+    "id": "focusMode",
+    "label": "专注模式",
+    "disabled": false,
+    "shortcut": "F8"
+  },
+  {
+    "id": "typewriterMode",
+    "label": "打字机模式",
+    "disabled": false,
+    "shortcut": "F9"
+  },
+  {
+    "id": "fullscreen",
+    "label": "全屏",
+    "disabled": false,
+    "shortcut": "F11"
+  },
+  {
+    "id": "zoomActual",
+    "label": "实际大小",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+0"
+  },
+  {
+    "id": "zoomIn",
+    "label": "放大",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+="
+  },
+  {
+    "id": "zoomOut",
+    "label": "缩小",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+-"
+  },
+  {
+    "id": "theme-github",
+    "label": "Github",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "theme-gothic",
+    "label": "Gothic",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "theme-newsprint",
+    "label": "Newsprint",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "theme-night",
+    "label": "Night",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "theme-pixyll",
+    "label": "Pixyll",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "theme-whitey",
+    "label": "Whitey",
+    "disabled": false,
+    "shortcut": ""
+  },
+  {
+    "id": "commandPalette",
+    "label": "命令面板",
+    "disabled": false,
+    "shortcut": "Ctrl/⌘+Shift/⇧+P"
+  },
+  {
+    "id": "about",
+    "label": "关于",
+    "disabled": false,
+    "shortcut": ""
+  }
+]

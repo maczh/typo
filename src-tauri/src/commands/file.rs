@@ -28,7 +28,11 @@ enum DialogMode {
 /// `tauri-plugin-dialog` v2.2+ exposes `pick_file`/`save_file`/`pick_folder` as
 /// `FnOnce(Option<FilePath>)` callbacks rather than `async` functions, so we use a
 /// `oneshot` channel to convert the callback into a `Future`.
-async fn pick_path(app: &AppHandle, mode: DialogMode, default_name: Option<&str>) -> Option<String> {
+async fn pick_path(
+    app: &AppHandle,
+    mode: DialogMode,
+    default_name: Option<&str>,
+) -> Option<String> {
     let (tx, rx) = oneshot::channel::<Option<String>>();
     match mode {
         DialogMode::Open => {
@@ -76,10 +80,7 @@ fn detect_kind(ext: &str) -> &'static str {
 /// text file is returned with `kind = "text"`. (DOCX / HTML conversion was
 /// removed — see req: delete docx/html import.)
 #[tauri::command]
-pub async fn open_file(
-    path: Option<String>,
-    app: AppHandle,
-) -> Result<FileResult, String> {
+pub async fn open_file(path: Option<String>, app: AppHandle) -> Result<FileResult, String> {
     let p = match path {
         Some(p) => p,
         None => match pick_path(&app, DialogMode::Open, None).await {
@@ -97,7 +98,8 @@ pub async fn open_file(
         .to_lowercase();
     let kind = detect_kind(&ext);
 
-    let content = String::from_utf8_lossy(&bytes).to_string();
+    let content = String::from_utf8(bytes)
+        .map_err(|_| "文件不是有效的 UTF-8 文本，请先转换编码".to_string())?;
 
     Ok(FileResult {
         path: p,
@@ -113,7 +115,7 @@ pub async fn open_file(
 /// Save (overwrite) a file at the given absolute path.
 #[tauri::command]
 pub async fn save_file(path: String, content: String) -> Result<SaveResult, String> {
-    fs::write(&path, content).map_err(|e| e.to_string())?;
+    crate::atomic_file::write(Path::new(&path), content.as_bytes()).map_err(|e| e.to_string())?;
     Ok(SaveResult {
         success: true,
         path,
@@ -125,7 +127,7 @@ pub async fn save_file(path: String, content: String) -> Result<SaveResult, Stri
 #[tauri::command]
 pub async fn save_file_as(path: String, content: String) -> Result<FileResult, String> {
     // Borrow `content` for the write so it remains owned for the result below.
-    fs::write(&path, content.as_bytes()).map_err(|e| e.to_string())?;
+    crate::atomic_file::write(Path::new(&path), content.as_bytes()).map_err(|e| e.to_string())?;
     Ok(FileResult {
         path: path.clone(),
         name: file_name(&path),

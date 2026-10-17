@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { menuViewport as vMenuViewport } from '@/directives/menuViewport'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as A from '@/commands/actions'
@@ -137,7 +138,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
       <!-- `.prevent` on both pointerdown and mousedown keeps the editor from
            losing focus/selection while the menu is being clicked. -->
       <div
-        class="ctx-menu"
+        v-menu-viewport class="ctx-menu"
         :style="style"
         @pointerdown.stop.prevent
         @mousedown.stop.prevent
@@ -250,7 +251,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           </button>
           <button
             type="button"
-            :class="{ active: nodeActive('task_list') }"
+            :class="{ active: A.taskListActive() }"
             :title="t('ctx.taskList')"
             :aria-label="t('ctx.taskList')"
             @click="run(A.insertTaskList)"
@@ -264,7 +265,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
         <!-- block style / table submenu -->
         <div class="ctx-item has-sub" @mouseenter="openSub = isTable ? 'table' : 'style'">
           <span>{{ submenuTitle }}</span><span class="arrow">▸</span>
-          <div v-if="openSub === 'table' || openSub === 'style'" class="ctx-submenu">
+          <div v-if="openSub === 'table' || openSub === 'style'" v-menu-viewport="true" class="ctx-submenu">
             <template v-if="isTable">
               <template v-for="(it, idx) in tableItems" :key="`t${idx}`">
                 <div v-if="it.sep" class="ctx-sep"></div>
@@ -286,7 +287,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
         <!-- insert submenu -->
         <div class="ctx-item has-sub" @mouseenter="openSub = 'insert'">
           <span>{{ t('ctx.insert') }}</span><span class="arrow">▸</span>
-          <div v-if="openSub === 'insert'" class="ctx-submenu">
+          <div v-if="openSub === 'insert'" v-menu-viewport="true" class="ctx-submenu">
             <template v-for="(it, idx) in insertItems" :key="`i${idx}`">
               <div v-if="it.sep" class="ctx-sep"></div>
               <button v-else type="button" class="ctx-row-item" @click="run(it.run)">

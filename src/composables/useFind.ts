@@ -46,14 +46,18 @@ export function useFind() {
 
   async function applyReplace(replaceAll: boolean): Promise<void> {
     if (!findText.value) return
-    const md = (await milkdown.getMarkdown()) || editor.doc.content
+    const session = editor.loadSignal
+    const source = ui.sourceMode.value ? document.querySelector<HTMLTextAreaElement>('.source-textarea') : null
+    const md = source?.value ?? (await milkdown.getMarkdown()) ?? editor.doc.content
+    if (session !== editor.loadSignal) return
     const flags = matchCase.value ? (replaceAll ? 'g' : '') : replaceAll ? 'gi' : 'i'
     const re = new RegExp(escapeRegex(findText.value), flags)
-    const replaced = md.replace(re, replaceText.value)
+    const replaced = md.replace(re, () => replaceText.value)
     if (replaced !== md) {
+      if (source) { source.value = replaced; source.dispatchEvent(new Event('input', { bubbles: true })) }
       editor.updateContent(replaced)
       editor.setOutline(buildOutlineFromMarkdown(replaced))
-      await milkdown.loadMarkdown(replaced)
+      await milkdown.loadMarkdown(replaced, false)
     }
   }
 

@@ -1,35 +1,21 @@
-// Print-CSS driven PDF export: render the HTML into a hidden iframe and invoke
-// the system print dialog (user chooses "Save as PDF"). This is the stable,
-// cross-platform approach for Tauri v2 (no built-in print-to-pdf command).
-import printCss from '@/styles/print.css?url'
+// Print sanitized HTML in a frame with scripts disabled, including native IPC.
+import printCss from '@/styles/print.css?raw'
 
 export async function toPdf(htmlContent: string): Promise<void> {
   const iframe = document.createElement('iframe')
-  iframe.style.position = 'fixed'
-  iframe.style.right = '0'
-  iframe.style.bottom = '0'
-  iframe.style.width = '0'
-  iframe.style.height = '0'
-  iframe.style.border = '0'
+  iframe.setAttribute('sandbox', 'allow-same-origin allow-modals')
+  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'
   document.body.appendChild(iframe)
-
   const doc = iframe.contentDocument
-  if (!doc) {
-    window.print()
-    return
-  }
+  const win = iframe.contentWindow
+  if (!doc || !win) { iframe.remove(); throw new Error('无法创建打印窗口') }
+  const loaded = new Promise<void>(resolve => { iframe.onload = () => resolve() })
   doc.open()
-  doc.write(
-    `<!doctype html><html><head><meta charset="utf-8" />` +
-      `<link rel="stylesheet" href="${printCss}" /></head>` +
-      `<body>${htmlContent}</body></html>`,
-  )
+  doc.write(htmlContent.replace('</head>', `<style>${printCss}</style></head>`))
   doc.close()
-
-  const w = iframe.contentWindow
-  if (w) {
-    w.focus()
-    w.print()
-  }
-  window.setTimeout(() => iframe.remove(), 1000)
+  await loaded
+  await doc.fonts?.ready
+  const timeout = window.setTimeout(() => iframe.remove(), 300000)
+  win.addEventListener('afterprint', () => { window.clearTimeout(timeout); iframe.remove() }, { once: true })
+  try { win.focus(); win.print() } catch (error) { window.clearTimeout(timeout); iframe.remove(); throw error }
 }

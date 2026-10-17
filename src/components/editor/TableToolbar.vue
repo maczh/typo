@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { hk } from '@/composables/useHotkeys'
 import { useMilkdown } from '@/composables/useMilkdown'
 import { useI18n } from 'vue-i18n'
 import * as table from '@/milkdown/plugins/table'
@@ -13,15 +14,15 @@ function run(fn: (editor: Parameters<typeof table.insertTable>[0]) => void): voi
 </script>
 
 <template>
-  <div class="table-toolbar">
-    <button class="icon-btn" :title="t('menu.insertTable')" @click="run(table.insertTable)">
+  <div class="table-toolbar" @mousedown.prevent>
+    <button class="icon-btn" :title="`${t('menu.insertTable')} (${hk('insertTable')})`" @click="run(table.insertTable)">
       ⊞ {{ t('menu.insertTable') }}
     </button>
     <span class="sep"></span>
-    <button class="icon-btn" title="Row +" @click="run((e) => table.addRow(e, true))">＋行</button>
-    <button class="icon-btn" title="Row −" @click="run((e) => table.removeRow(e))">－行</button>
-    <button class="icon-btn" title="Col +" @click="run((e) => table.addColumn(e))">＋列</button>
-    <button class="icon-btn" title="Col −" @click="run((e) => table.removeColumn(e))">－列</button>
+    <button class="icon-btn" :title="`${t('ctx.rowBelow')} (${hk('table-row-below')})`" @click="run((e) => table.addRow(e, true))">＋行</button>
+    <button class="icon-btn" :title="`${t('ctx.deleteRow')} (${hk('table-del-row')})`" @click="run((e) => table.removeRow(e))">－行</button>
+    <button class="icon-btn" :title="t('ctx.colRight')" @click="run((e) => table.addColumn(e))">＋列</button>
+    <button class="icon-btn" :title="t('ctx.deleteCol')" @click="run((e) => table.removeColumn(e))">－列</button>
   </div>
 </template>
 

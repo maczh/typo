@@ -1,11 +1,12 @@
-import { ref } from 'vue'
+import { ref, shallowRef } from 'vue'
 import type { Editor } from '@milkdown/core'
 import { createEditor, type EditorInstance } from '@/milkdown/setup'
 
 // Module-level shared state so every component (EditorPane, ImageHandler,
 // TableToolbar, export) operates on the same editor instance.
-const instance = ref<EditorInstance | null>(null)
+const instance = shallowRef<EditorInstance | null>(null)
 const isReady = ref(false)
+let generation = 0
 
 /**
  * Shared Milkdown controller. Returns the singleton editor instance and helpers.
@@ -17,7 +18,11 @@ export function useMilkdown() {
     defaultValue = '',
     onChange?: (markdown: string) => void,
   ): Promise<void> {
-    instance.value = await createEditor(container, defaultValue, { onChange })
+    const current = ++generation
+    const created = await createEditor(container, defaultValue, { onChange })
+    if (current !== generation) { created.destroy(); return }
+    instance.value?.destroy()
+    instance.value = created
     isReady.value = true
     // Opt-in handle so automated probes can drive the editor. Only exposed when the
     // URL carries `?e2e=1`, so it has no effect in normal use or production.
@@ -30,8 +35,8 @@ export function useMilkdown() {
     return instance.value?.getMarkdown() ?? ''
   }
 
-  function loadMarkdown(md: string): void {
-    instance.value?.loadMarkdown(md)
+  function loadMarkdown(md: string, resetHistory = true): void {
+    instance.value?.loadMarkdown(md, resetHistory)
   }
 
   function getHTML(): Promise<string> | string {
@@ -47,6 +52,7 @@ export function useMilkdown() {
   }
 
   function destroy(): void {
+    generation++
     instance.value?.destroy()
     instance.value = null
     isReady.value = false

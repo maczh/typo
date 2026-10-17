@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { invoke } from '@tauri-apps/api/core'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { isTauri } from '@/composables/useTauri'
 import { onMounted, onBeforeUnmount } from 'vue'
 import MenuBar from './MenuBar.vue'
 import Toolbar from '../editor/Toolbar.vue'
@@ -16,6 +19,7 @@ import { useUI } from '@/composables/useUI'
 import { useAutosave } from '@/composables/useAutosave'
 import { useTauri } from '@/composables/useTauri'
 import { useHotkeys } from '@/composables/useHotkeys'
+import { useDocumentClose } from '@/composables/useDocumentClose'
 import { useWindowTitle } from '@/composables/useWindowTitle'
 
 const settingsStore = useSettingsStore()
@@ -28,11 +32,23 @@ const tauri = useTauri()
 useHotkeys()
 // Keep the window title ("Typo - <file>") in sync with the open document.
 useWindowTitle()
+useDocumentClose()
 
 // Destructure so the refs auto-unwrap in the template.
 const { sidebarVisible, commandPaletteOpen, recoveryOpen, settingsOpen, sourceMode, findOpen, quickOpenOpen } = ui
 
+let unlistenOpenFiles: UnlistenFn | undefined
+async function openPendingFiles(): Promise<void> {
+  const paths = await invoke<string[]>('take_open_files')
+  for (const path of paths) {
+    try { await filesStore.openFile(path) } catch { /* The bridge already displays the file error. */ }
+  }
+}
 onMounted(async () => {
+  if (isTauri()) {
+    unlistenOpenFiles = await listen('open-files', () => { void openPendingFiles() })
+    await openPendingFiles()
+  }
   await settingsStore.load()
   await filesStore.loadRecent()
   autosave.start()
@@ -46,6 +62,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  unlistenOpenFiles?.()
   autosave.stop()
 })
 </script>

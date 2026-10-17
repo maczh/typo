@@ -3,6 +3,7 @@ import { toMarkdown } from './toMarkdown'
 import { toHtml } from './toHtml'
 import { toPdf } from './toPdf'
 import { useTauri } from '@/composables/useTauri'
+import { prepareImagesForSave } from '@/utils/images'
 import { showToast } from '@/utils/toast'
 
 /** Trigger a browser-style download of a Blob (works inside the Tauri webview). */
@@ -32,11 +33,14 @@ export async function exportDocument(
     if (format === 'markdown') {
       const content = toMarkdown(markdown)
       const path = await tauri.pickSave(`${baseName}.md`)
-      if (path) await tauri.saveFileAs(path, content)
+      if (!path) return
+      const prepared = await prepareImagesForSave(content, path)
+      await tauri.saveFileAs(path, prepared.content)
     } else if (format === 'html') {
       const content = await toHtml(markdown, baseName)
       const path = await tauri.pickSave(`${baseName}.html`)
-      if (path) await tauri.saveFileAs(path, content)
+      if (!path) return
+      await tauri.saveFileAs(path, content)
     } else if (format === 'pdf') {
       const html = await toHtml(markdown, baseName)
       await toPdf(html)

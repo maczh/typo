@@ -1,0 +1,654 @@
+[
+  {
+    "name": "menu:h1",
+    "status": "pass"
+  },
+  {
+    "name": "menu:h2",
+    "status": "pass"
+  },
+  {
+    "name": "menu:h3",
+    "status": "pass"
+  },
+  {
+    "name": "menu:h4",
+    "status": "pass"
+  },
+  {
+    "name": "menu:h5",
+    "status": "pass"
+  },
+  {
+    "name": "menu:h6",
+    "status": "pass"
+  },
+  {
+    "name": "menu:incHeading",
+    "status": "pass"
+  },
+  {
+    "name": "menu:decHeading",
+    "status": "pass"
+  },
+  {
+    "name": "menu:bold",
+    "status": "pass"
+  },
+  {
+    "name": "menu:italic",
+    "status": "pass"
+  },
+  {
+    "name": "menu:underline",
+    "status": "pass"
+  },
+  {
+    "name": "menu:strike",
+    "status": "pass"
+  },
+  {
+    "name": "menu:inlineCode",
+    "status": "pass"
+  },
+  {
+    "name": "menu:link",
+    "status": "pass"
+  },
+  {
+    "name": "menu:quote",
+    "status": "pass"
+  },
+  {
+    "name": "menu:orderedList",
+    "status": "pass"
+  },
+  {
+    "name": "menu:unorderedList",
+    "status": "pass"
+  },
+  {
+    "name": "menu:taskList",
+    "status": "pass"
+  },
+  {
+    "name": "menu:codeBlock",
+    "status": "pass"
+  },
+  {
+    "name": "menu:mathBlock",
+    "status": "pass"
+  },
+  {
+    "name": "menu:inlineMath",
+    "status": "pass"
+  },
+  {
+    "name": "menu:table-insert",
+    "status": "pass"
+  },
+  {
+    "name": "menu:horizontalRule",
+    "status": "pass"
+  },
+  {
+    "name": "menu:toc",
+    "status": "pass"
+  },
+  {
+    "name": "menu:footnote",
+    "status": "pass"
+  },
+  {
+    "name": "menu:linkReference",
+    "status": "pass"
+  },
+  {
+    "name": "menu:comment",
+    "status": "pass"
+  },
+  {
+    "name": "menu:insertParaAbove",
+    "status": "pass"
+  },
+  {
+    "name": "menu:insertParaBelow",
+    "status": "pass"
+  },
+  {
+    "name": "menu:alert-note",
+    "status": "pass"
+  },
+  {
+    "name": "menu:alert-tip",
+    "status": "pass"
+  },
+  {
+    "name": "menu:alert-important",
+    "status": "pass"
+  },
+  {
+    "name": "menu:alert-warning",
+    "status": "pass"
+  },
+  {
+    "name": "menu:alert-caution",
+    "status": "pass"
+  },
+  {
+    "name": "toolbar:bold",
+    "status": "pass"
+  },
+  {
+    "name": "toolbar:italic",
+    "status": "pass"
+  },
+  {
+    "name": "toolbar:underline",
+    "status": "pass"
+  },
+  {
+    "name": "toolbar:strike",
+    "status": "pass"
+  },
+  {
+    "name": "toolbar:inlineCode",
+    "status": "pass"
+  },
+  {
+    "name": "toolbar:link",
+    "status": "pass"
+  },
+  {
+    "name": "toolbar:quote",
+    "status": "pass"
+  },
+  {
+    "name": "toolbar:orderedList",
+    "status": "pass"
+  },
+  {
+    "name": "toolbar:unorderedList",
+    "status": "pass"
+  },
+  {
+    "name": "toolbar:taskList",
+    "status": "pass"
+  },
+  {
+    "name": "toolbar:codeBlock",
+    "status": "pass"
+  },
+  {
+    "name": "toolbar:mathBlock",
+    "status": "pass"
+  },
+  {
+    "name": "paragraph conversion",
+    "status": "pass"
+  },
+  {
+    "name": "clear formatting",
+    "status": "pass"
+  },
+  {
+    "name": "unique effective shortcuts",
+    "status": "pass"
+  },
+  {
+    "name": "shortcut:bold",
+    "status": "pass"
+  },
+  {
+    "name": "shortcut:italic",
+    "status": "pass"
+  },
+  {
+    "name": "shortcut:underline",
+    "status": "pass"
+  },
+  {
+    "name": "shortcut:strike",
+    "status": "pass"
+  },
+  {
+    "name": "shortcut:inlineCode",
+    "status": "pass"
+  },
+  {
+    "name": "shortcut:quote",
+    "status": "pass"
+  },
+  {
+    "name": "shortcut:orderedList",
+    "status": "pass"
+  },
+  {
+    "name": "shortcut:unorderedList",
+    "status": "pass"
+  },
+  {
+    "name": "shortcut:taskList",
+    "status": "pass"
+  },
+  {
+    "name": "shortcut:codeBlock",
+    "status": "pass"
+  },
+  {
+    "name": "replace opens replacement controls",
+    "status": "pass"
+  },
+  {
+    "name": "view/dialog:focusMode",
+    "status": "pass"
+  },
+  {
+    "name": "view/dialog:typewriterMode",
+    "status": "pass"
+  },
+  {
+    "name": "view/dialog:outline",
+    "status": "pass"
+  },
+  {
+    "name": "view/dialog:fileTree",
+    "status": "pass"
+  },
+  {
+    "name": "view/dialog:toggleSidebar",
+    "status": "pass"
+  },
+  {
+    "name": "view/dialog:zoomIn",
+    "status": "pass"
+  },
+  {
+    "name": "view/dialog:zoomOut",
+    "status": "pass"
+  },
+  {
+    "name": "view/dialog:zoomActual",
+    "status": "pass"
+  },
+  {
+    "name": "view/dialog:quickOpen",
+    "status": "pass"
+  },
+  {
+    "name": "view/dialog:preferences",
+    "status": "pass"
+  },
+  {
+    "name": "view/dialog:commandPalette",
+    "status": "pass"
+  },
+  {
+    "name": "view/dialog:find",
+    "status": "pass"
+  },
+  {
+    "name": "view/dialog:sourceMode",
+    "status": "pass"
+  },
+  {
+    "name": "theme:github",
+    "status": "pass"
+  },
+  {
+    "name": "theme:gothic",
+    "status": "pass"
+  },
+  {
+    "name": "theme:newsprint",
+    "status": "pass"
+  },
+  {
+    "name": "theme:night",
+    "status": "pass"
+  },
+  {
+    "name": "theme:pixyll",
+    "status": "pass"
+  },
+  {
+    "name": "theme:whitey",
+    "status": "pass"
+  },
+  {
+    "name": "table:table-row-above",
+    "status": "pass"
+  },
+  {
+    "name": "table:table-row-below",
+    "status": "pass"
+  },
+  {
+    "name": "table:table-col-left",
+    "status": "pass"
+  },
+  {
+    "name": "table:table-col-right",
+    "status": "pass"
+  },
+  {
+    "name": "table:table-move-row-up",
+    "status": "pass"
+  },
+  {
+    "name": "table:table-move-row-down",
+    "status": "pass"
+  },
+  {
+    "name": "table:table-move-col-left",
+    "status": "pass"
+  },
+  {
+    "name": "table:table-move-col-right",
+    "status": "pass"
+  },
+  {
+    "name": "table:table-del-row",
+    "status": "pass"
+  },
+  {
+    "name": "table:table-del-col",
+    "status": "pass"
+  },
+  {
+    "name": "table:table-copy",
+    "status": "pass"
+  },
+  {
+    "name": "table:table-format",
+    "status": "pass"
+  },
+  {
+    "name": "table:table-del",
+    "status": "pass"
+  },
+  {
+    "name": "context selected text bold",
+    "status": "pass"
+  },
+  {
+    "name": "scrolling popup stays inside viewport",
+    "status": "pass"
+  },
+  {
+    "name": "toggle off:unorderedList",
+    "status": "pass"
+  },
+  {
+    "name": "toggle off:orderedList",
+    "status": "pass"
+  },
+  {
+    "name": "toggle off:taskList",
+    "status": "pass"
+  },
+  {
+    "name": "toggle off:quote",
+    "status": "pass"
+  },
+  {
+    "name": "task list preserves selected text",
+    "status": "pass"
+  },
+  {
+    "name": "undo and redo",
+    "status": "pass"
+  },
+  {
+    "name": "toolbar heading dropdown follows current block",
+    "status": "pass"
+  },
+  {
+    "name": "native editor aliases are removed",
+    "status": "pass"
+  },
+  {
+    "name": "shifted physical shortcuts",
+    "status": "pass"
+  },
+  {
+    "name": "shortcut recording canonicalizes shifted punctuation",
+    "status": "pass"
+  },
+  {
+    "name": "clipboard selected Markdown",
+    "status": "pass"
+  },
+  {
+    "name": "clipboard copy and cut",
+    "status": "pass"
+  },
+  {
+    "name": "paste plain text",
+    "status": "pass"
+  },
+  {
+    "name": "paste Markdown",
+    "status": "pass"
+  },
+  {
+    "name": "replace all changes content",
+    "status": "pass"
+  },
+  {
+    "name": "reference survives reload",
+    "status": "pass"
+  },
+  {
+    "name": "block handle opens floating menu",
+    "status": "pass"
+  },
+  {
+    "name": "main dropdown stays below menu bar",
+    "status": "pass"
+  },
+  {
+    "name": "local image toolbar opens file picker",
+    "status": "pass"
+  },
+  {
+    "name": "diagram:flowchart",
+    "status": "pass"
+  },
+  {
+    "name": "diagram:sequence",
+    "status": "pass"
+  },
+  {
+    "name": "diagram:class",
+    "status": "pass"
+  },
+  {
+    "name": "diagram:state",
+    "status": "pass"
+  },
+  {
+    "name": "diagram:er",
+    "status": "pass"
+  },
+  {
+    "name": "diagram:gantt",
+    "status": "pass"
+  },
+  {
+    "name": "diagram:pie",
+    "status": "pass"
+  },
+  {
+    "name": "diagram:journey",
+    "status": "pass"
+  },
+  {
+    "name": "context insert submenu scroll reaches final item",
+    "status": "pass"
+  },
+  {
+    "name": "context format:bold",
+    "status": "pass"
+  },
+  {
+    "name": "context format:italic",
+    "status": "pass"
+  },
+  {
+    "name": "context format:inlineCode",
+    "status": "pass"
+  },
+  {
+    "name": "context format:link",
+    "status": "pass"
+  },
+  {
+    "name": "context format:strike",
+    "status": "pass"
+  },
+  {
+    "name": "context format:quote",
+    "status": "pass"
+  },
+  {
+    "name": "context format:bulletList",
+    "status": "pass"
+  },
+  {
+    "name": "context format:orderedList",
+    "status": "pass"
+  },
+  {
+    "name": "context format:taskList",
+    "status": "pass"
+  },
+  {
+    "name": "context heading:1",
+    "status": "pass"
+  },
+  {
+    "name": "context heading:2",
+    "status": "pass"
+  },
+  {
+    "name": "context heading:3",
+    "status": "pass"
+  },
+  {
+    "name": "context heading:4",
+    "status": "pass"
+  },
+  {
+    "name": "context heading:5",
+    "status": "pass"
+  },
+  {
+    "name": "context heading:6",
+    "status": "pass"
+  },
+  {
+    "name": "context insert:horizontalRule",
+    "status": "pass"
+  },
+  {
+    "name": "context insert:table",
+    "status": "pass"
+  },
+  {
+    "name": "context insert:codeBlock",
+    "status": "pass"
+  },
+  {
+    "name": "context insert:mathBlock",
+    "status": "pass"
+  },
+  {
+    "name": "context insert:footnote",
+    "status": "pass"
+  },
+  {
+    "name": "context insert:linkRef",
+    "status": "pass"
+  },
+  {
+    "name": "context insert:toc",
+    "status": "pass"
+  },
+  {
+    "name": "context insert:yaml",
+    "status": "pass"
+  },
+  {
+    "name": "context insert:paraAbove",
+    "status": "pass"
+  },
+  {
+    "name": "context insert:paraBelow",
+    "status": "pass"
+  },
+  {
+    "name": "shortcut customization updates every surface and removes original",
+    "status": "pass"
+  },
+  {
+    "name": "table row shortcut changes row count",
+    "status": "pass"
+  },
+  {
+    "name": "YAML front matter is inserted at document start and survives reload",
+    "status": "pass"
+  },
+  {
+    "name": "footnotes preserve selection and round trip with definitions",
+    "status": "pass"
+  },
+  {
+    "name": "task status:task-selected",
+    "status": "pass"
+  },
+  {
+    "name": "task status:task-unselected",
+    "status": "pass"
+  },
+  {
+    "name": "task status:task-ignored",
+    "status": "pass"
+  },
+  {
+    "name": "code tools:indent-selection",
+    "status": "pass"
+  },
+  {
+    "name": "code tools:indent-block",
+    "status": "pass"
+  },
+  {
+    "name": "code tools:copy-code",
+    "status": "pass"
+  },
+  {
+    "name": "link tools:link-copy",
+    "status": "pass"
+  },
+  {
+    "name": "link tools:link-remove",
+    "status": "pass"
+  },
+  {
+    "name": "link tools:link-edit",
+    "status": "pass"
+  },
+  {
+    "name": "remote image insertion",
+    "status": "pass"
+  },
+  {
+    "name": "menu inventory",
+    "status": "pass"
+  },
+  {
+    "name": "no runtime exceptions",
+    "status": "pass"
+  }
+]

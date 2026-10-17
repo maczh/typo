@@ -1,5 +1,5 @@
 import type { Editor } from '@milkdown/core'
-import { insert } from '@milkdown/utils'
+import { editorViewCtx } from '@milkdown/core'
 
 /**
  * Image helpers. Crepe provides an `image` node; these helpers insert an image
@@ -8,8 +8,11 @@ import { insert } from '@milkdown/utils'
 
 /** Insert an image at the caret using `src` (relative or absolute) and `alt`. */
 export function insertImage(editor: Editor, src: string, alt = ''): void {
-  const md = `![${alt}](${src})`
-  editor.action(insert(md))
+  editor.action(ctx => {
+    const view = ctx.get(editorViewCtx)
+    const type = view.state.schema.nodes.image
+    if (type) view.dispatch(view.state.tr.replaceSelectionWith(type.create({ src, alt, title: '' })).scrollIntoView())
+  })
 }
 
 /** Ensure a relative asset path is dot-prefixed for portability. */

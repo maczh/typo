@@ -1,19 +1,7 @@
-# Cargo config for building the Typo Tauri v2 app on this host.
-#
-# History: an earlier session created a local sysroot (/home/Macro/tauri-dev/sysroot)
-# with extracted Debian bookworm headers, because the Deepin/UOS apt sources were 404
-# and the WebKit2GTK-4.1 / GTK3 / libsoup -dev packages could not be installed.
-# That sysroot no longer exists AND the host now ships the real -dev packages
-# (webkit2gtk-4.1 2.46.3, javascriptcoregtk-4.1, libsoup-3.0 3.4.3, gtk+-3.0 3.24.41),
-# so pkg-config resolves everything from /usr/lib/x86_64-linux-gnu/pkgconfig directly.
-# Nothing needs to be injected here any more.
-#
-# IMPORTANT: do NOT put an `[env]` table under `[target.<triple>]`. Cargo only accepts
-# plain `KEY = "value"` strings there. The `{ value = "...", relative = false }` table
-# form is valid ONLY for the top-level `[env]` section; under a target it makes cargo
-# abort with:
-#   error: expected a string, but found a table for `KEY` in .../.cargo/config.toml
-# If you ever need the table form, use a top-level `[env]` block instead.
+# Linux builds use the system GTK3 / WebKitGTK 4.1 development packages.
+# Verify with pkg-config before building; runtime .so files alone are insufficient.
+# Deepin 23 source repair and dependency installation: see build-env.md.
+# Do not hardcode a machine-local sysroot or assume development packages exist.
 
 [target.x86_64-unknown-linux-gnu]
 rustflags = []

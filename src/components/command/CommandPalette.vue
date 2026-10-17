@@ -45,9 +45,7 @@ async function saveAs(): Promise<void> {
   await A.saveFileAs()
 }
 async function doExport(format: ExportFormat): Promise<void> {
-  const md = await getMd()
-  const base = (editor.doc.name || 'untitled').replace(/\.md$/i, '')
-  await exportDocument(md, format, base || 'untitled')
+  await A.exportAs(format)
 }
 function setMode(mode: 'normal' | 'focus' | 'typewriter'): void {
   settings.update({ mode })
@@ -78,8 +76,8 @@ const cmds: Cmd[] = [
   { id: 'focus', labelKey: 'menu.focusMode', run: () => setMode('focus') },
   { id: 'typewriter', labelKey: 'menu.typewriterMode', run: () => setMode('typewriter') },
   { id: 'normal', labelKey: 'menu.normalMode', run: () => setMode('normal') },
-  { id: 'theme-light', labelKey: 'theme.github-light', run: () => applyTheme('github-light') },
-  { id: 'theme-dark', labelKey: 'theme.nord-dark', run: () => applyTheme('nord-dark') },
+  { id: 'theme-light', labelKey: 'theme.github', run: () => applyTheme('github') },
+  { id: 'theme-dark', labelKey: 'theme.night', run: () => applyTheme('night') },
   {
     id: 'lang-zh',
     label: '中文 (简体)',

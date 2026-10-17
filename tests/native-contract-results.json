@@ -1,0 +1,94 @@
+[
+  {
+    "name": "open file route",
+    "status": "pass",
+    "commands": [
+      "pick_open",
+      "open_file",
+      "add_recent",
+      "list_dir",
+      "list_recent"
+    ]
+  },
+  {
+    "name": "open folder route",
+    "status": "pass",
+    "commands": [
+      "pick_dir",
+      "list_dir"
+    ]
+  },
+  {
+    "name": "save route",
+    "status": "pass",
+    "commands": [
+      "save_file",
+      "add_recent",
+      "list_recent"
+    ]
+  },
+  {
+    "name": "save as route",
+    "status": "pass",
+    "commands": [
+      "pick_save",
+      "save_file_as",
+      "add_recent",
+      "list_recent"
+    ]
+  },
+  {
+    "name": "new window route",
+    "status": "pass",
+    "commands": [
+      "new_window"
+    ]
+  },
+  {
+    "name": "close native window route",
+    "status": "pass",
+    "commands": [
+      "plugin:window|close"
+    ]
+  },
+  {
+    "name": "native fullscreen route",
+    "status": "pass",
+    "commands": [
+      "plugin:window|is_fullscreen",
+      "plugin:window|set_fullscreen"
+    ]
+  },
+  {
+    "name": "export markdown route",
+    "status": "pass"
+  },
+  {
+    "name": "export html route",
+    "status": "pass"
+  },
+  {
+    "name": "source mode save/export uses current source",
+    "status": "pass"
+  },
+  {
+    "name": "image root chooser persists document metadata",
+    "status": "pass"
+  },
+  {
+    "name": "batch image copy updates references",
+    "status": "pass"
+  },
+  {
+    "name": "batch image move saves references before deleting originals",
+    "status": "pass"
+  },
+  {
+    "name": "failed save retains original images during move",
+    "status": "pass"
+  },
+  {
+    "name": "source paste participates in undo history",
+    "status": "pass"
+  }
+]

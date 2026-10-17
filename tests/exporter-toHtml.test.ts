@@ -55,3 +55,19 @@ test('inlines the KaTeX stylesheet so the file is offline-friendly', async () =>
   // stylesheet is inlined into the document head.
   assert.match(html, /katex/i)
 })
+
+
+test('removes executable HTML while retaining safe markup and math', async () => {
+  const html = await toHtml('<script>window.pwned=1</script>\n\n<img src="x" onerror="alert(1)">\n\n<a href="javascript:alert(1)">bad</a> <u>safe</u> $x$')
+  assert.doesNotMatch(html, /<script|onerror=|href="javascript:/i)
+  assert.match(html, /<u>safe<\/u>/)
+  assert.match(html, /class="math-inline"/)
+})
+
+test('math export preserves literal dollars in inline and fenced code', async () => {
+  const html = await toHtml('`$literal$`\n\n```text\n$$not math$$\n```')
+  assert.match(html, /<code>\$literal\$<\/code>/)
+  assert.match(html, /\$\$not math\$\$/)
+  const body = html.split('<body>')[1]
+  assert.doesNotMatch(body, /math-inline|math-block|class="katex"/)
+})

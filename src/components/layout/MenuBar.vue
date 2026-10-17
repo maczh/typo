@@ -1,22 +1,18 @@
 <script setup lang="ts">
+import { menuViewport as vMenuViewport } from '@/directives/menuViewport'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { MenuItem } from './menuTypes'
 import MenuNode from './MenuNode.vue'
 import { useUI } from '@/composables/useUI'
 import * as A from '@/commands/actions'
-import { exportDocument } from '@/utils/exporter'
-import { useEditorStore } from '@/stores/editor'
 import { useSettingsStore } from '@/stores/settings'
-import { useMilkdown } from '@/composables/useMilkdown'
 import { hk } from '@/composables/useHotkeys'
 import type { ExportFormat } from '@/types'
 
 const { t } = useI18n()
 const ui = useUI()
-const editor = useEditorStore()
 const settings = useSettingsStore()
-const milkdown = useMilkdown()
 
 const openMenu = ref<string | null>(null)
 const aboutOpen = ref(false)
@@ -58,14 +54,14 @@ const menus = computed<{ id: string; titleKey: string; items: MenuItem[] }[]>(()
     id: 'file',
     titleKey: 'menu.file',
     items: [
-      { id: 'new', titleKey: 'menu.new' },
+      { id: 'new', titleKey: 'menu.new', shortcut: hk('new') },
       { id: 'newWindow', titleKey: 'menu.newWindow' },
-      { id: 'open', titleKey: 'menu.open' },
-      { id: 'openFolder', titleKey: 'menu.openFolder' },
+      { id: 'open', titleKey: 'menu.open', shortcut: hk('open') },
+      { id: 'openFolder', titleKey: 'menu.openFolder', shortcut: hk('openFolder') },
       { id: 'quickOpen', titleKey: 'menu.quickOpen', shortcut: hk('quickOpen') },
       { id: 'save', titleKey: 'menu.save', shortcut: hk('save') },
       { id: 'saveAs', titleKey: 'menu.saveAs', shortcut: hk('saveAs') },
-      { id: 'close', titleKey: 'menu.close' },
+      { id: 'close', titleKey: 'menu.close', shortcut: hk('close') },
       { id: 'recent', titleKey: 'menu.recent' },
       {
         id: 'export',
@@ -175,8 +171,8 @@ const menus = computed<{ id: string; titleKey: string; items: MenuItem[] }[]>(()
       {
         titleKey: 'menu.indent',
         sub: [
-          { id: 'indent-list', titleKey: 'menu.indent', shortcut: 'Ctrl/⌘+]' },
-          { id: 'outdent-list', titleKey: 'menu.outdent', shortcut: 'Ctrl/⌘+[' },
+          { id: 'indent-list', titleKey: 'menu.indent', shortcut: hk('indent-list') },
+          { id: 'outdent-list', titleKey: 'menu.outdent', shortcut: hk('outdent-list') },
         ],
       },
       { sep: true },
@@ -217,8 +213,8 @@ const menus = computed<{ id: string; titleKey: string; items: MenuItem[] }[]>(()
       {
         titleKey: 'menu.insertImage',
         sub: [
-          { id: 'image-remote', titleKey: 'menu.insertRemoteImage', shortcut: 'Alt/⌥+⌘+I' },
-          { id: 'image-local', titleKey: 'menu.insertLocalImage' },
+          { id: 'image-remote', titleKey: 'menu.insertRemoteImage', shortcut: hk('image-remote') },
+          { id: 'image-local', titleKey: 'menu.insertLocalImage', shortcut: hk('insertLocalImage') },
           { sep: true },
           { id: 'image-location', titleKey: 'menu.openImageLocation', disabled: () => true },
           {
@@ -236,20 +232,18 @@ const menus = computed<{ id: string; titleKey: string; items: MenuItem[] }[]>(()
           { sep: true },
           { id: 'image-copy-to', titleKey: 'menu.copyImageTo', disabled: () => true },
           { id: 'image-rename-move', titleKey: 'menu.renameMoveImage', disabled: () => true },
-          { id: 'image-upload', titleKey: 'menu.uploadImage', disabled: () => true },
           { sep: true },
           { id: 'image-copy-all', titleKey: 'menu.copyAllImagesTo' },
           { id: 'image-move-all', titleKey: 'menu.moveAllImagesTo' },
-          { id: 'image-upload-all', titleKey: 'menu.uploadAllLocalImages' },
           { sep: true },
           { id: 'image-reload-all', titleKey: 'menu.reloadAllImages' },
           { sep: true },
           {
             titleKey: 'menu.whenInsertLocalImage',
             sub: [
-              { id: 'image-mode-none', titleKey: 'menu.noSpecialOp' },
-              { id: 'image-mode-current', titleKey: 'menu.copyToCurrentFolder' },
-              { id: 'image-mode-assets', titleKey: 'menu.copyToAssetsRelative' },
+              { id: 'image-mode-none', titleKey: 'menu.noSpecialOp', checked: () => (localStorage.getItem('typo-image-insert-mode') || 'assets') === 'none' },
+              { id: 'image-mode-current', titleKey: 'menu.copyToCurrentFolder', checked: () => (localStorage.getItem('typo-image-insert-mode') || 'assets') === 'current' },
+              { id: 'image-mode-assets', titleKey: 'menu.copyToAssetsRelative', checked: () => (localStorage.getItem('typo-image-insert-mode') || 'assets') === 'assets' },
             ],
           },
           { id: 'image-root', titleKey: 'menu.setImageRoot' },
@@ -312,9 +306,7 @@ function closeMenu(): void {
 }
 
 async function doExport(format: ExportFormat): Promise<void> {
-  const md = await milkdown.getMarkdown()
-  const base = (editor.doc.name || 'untitled').replace(/\.md$/i, '')
-  await exportDocument(md, format, base || 'untitled')
+  await A.exportAs(format)
 }
 
 function applyTheme(id: string): void {
@@ -337,7 +329,7 @@ function runCommand(id: string): void {
     case 'save': void A.saveFile(); break
     case 'saveAs': void A.saveFileAs(); break
     case 'close': A.closeWindow(); break
-    case 'recent': ui.toggleSidebar(); break
+    case 'recent': ui.openQuickOpen(); break
     case 'export-md': void doExport('markdown'); break
     case 'export-html': void doExport('html'); break
     case 'export-pdf': void doExport('pdf'); break
@@ -352,7 +344,7 @@ function runCommand(id: string): void {
     case 'pastePlain': void A.pasteAsPlainText(); break
     case 'selectAll': A.selectAll(); break
     case 'find': ui.openFind(); break
-    case 'replace': ui.openFind(); break
+    case 'replace': A.openReplace(); break
     // Paragraph
     case 'h1': A.setHeading(1); break
     case 'h2': A.setHeading(2); break
@@ -419,7 +411,6 @@ function runCommand(id: string): void {
     case 'image-local': A.pickAndInsertImage(); break
     case 'image-copy-all': A.copyAllImages(); break
     case 'image-move-all': A.moveAllImages(); break
-    case 'image-upload-all': A.uploadAllImages(); break
     case 'image-reload-all': A.reloadAllImages(); break
     case 'image-mode-none': A.setImageInsertMode('none'); break
     case 'image-mode-current': A.setImageInsertMode('current'); break
@@ -454,17 +445,17 @@ function runCommand(id: string): void {
 </script>
 
 <template>
-  <header ref="menuBarEl" class="menu-bar" @click="closeMenu">
+  <header ref="menuBarEl" class="menu-bar" @click="closeMenu" @mousedown.prevent>
     <div class="brand" @click.stop>
       <img src="/logo.png" class="brand-logo" alt="Typo" />
       <span class="brand-name">{{ t('app.name') }}</span>
     </div>
     <template v-for="menu in menus" :key="menu.id">
       <div class="menu" @click.stop>
-        <button class="menu-title" :class="{ active: openMenu === menu.id }" @click="toggleMenu(menu.id)">
+        <button class="menu-title" :class="{ active: openMenu === menu.id }" :disabled="ui.sourceMode.value && ['paragraph', 'format'].includes(menu.id)" @click="toggleMenu(menu.id)">
           {{ t(menu.titleKey) }}
         </button>
-        <div v-if="openMenu === menu.id" class="menu-dropdown">
+        <div v-if="openMenu === menu.id" v-menu-viewport class="menu-dropdown">
           <MenuNode
             v-for="(item, idx) in menu.items"
             :key="item.id || `sep-${idx}`"
@@ -476,7 +467,7 @@ function runCommand(id: string): void {
     </template>
     <div class="menu-spacer"></div>
     <button class="icon-btn" :title="t('menu.commandPalette')" @click="ui.openCommandPalette()">
-      ⌘P
+      {{ hk('commandPalette') }}
     </button>
   </header>
 
@@ -484,7 +475,7 @@ function runCommand(id: string): void {
     <div v-if="aboutOpen" class="about-mask" @click.self="aboutOpen = false">
       <div class="about-dialog">
         <img src="/logo.png" class="about-logo" alt="Typo" />
-        <h2>{{ t('app.name') }} v0.1.1</h2>
+        <h2>{{ t('app.name') }} v0.1.3</h2>
         <p class="about-desc">A Typora-style WYSIWYG Markdown editor.</p>
         <button class="about-btn" @click="aboutOpen = false">{{ t('common.close') }}</button>
       </div>

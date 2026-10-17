@@ -16,8 +16,9 @@ test('dirname returns the parent directory', () => {
   assert.equal(dirname('a/b/c.md'), 'a/b')
   // single segment (no slash) -> current dir
   assert.equal(dirname('c.md'), '.')
-  // file at root -> '.'
-  assert.equal(dirname('/c.md'), '.')
+  // Keep filesystem roots absolute.
+  assert.equal(dirname('/c.md'), '/')
+  assert.equal(dirname('C:\\c.md'), 'C:/')
 })
 
 test('replaceExtension swaps the extension (with or without leading dot)', () => {

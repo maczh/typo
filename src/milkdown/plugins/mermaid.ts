@@ -51,7 +51,7 @@ function t(key: string): string {
 /** Light/dark Mermaid palette, derived from the active app theme. */
 export function currentMermaidTheme(): MermaidThemeName {
   const theme = document.documentElement.getAttribute('data-theme') || ''
-  return theme.includes('dark') ? 'dark' : 'default'
+  return ['night', 'gothic'].includes(theme) || theme.includes('dark') ? 'dark' : 'default'
 }
 
 let mermaidPromise: Promise<typeof import('mermaid').default> | null = null

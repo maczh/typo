@@ -4,6 +4,7 @@ import { useEditorStore } from '@/stores/editor'
 import { useFilesStore } from '@/stores/files'
 import { useSettingsStore } from '@/stores/settings'
 import { useTauri, isTauri } from '@/composables/useTauri'
+import { useFind } from '@/composables/useFind'
 import { useUI } from '@/composables/useUI'
 import { readClipboardText, writeClipboardText } from '@/composables/useClipboard'
 import { showToast } from '@/utils/toast'
@@ -26,7 +27,7 @@ import { findTemplate } from '@/milkdown/plugins/mermaidTemplates'
 import { insertImage } from '@/milkdown/plugins/image'
 import { insert } from '@milkdown/utils'
 import { dirname, nativeJoin } from '@/utils/file'
-import { prepareImagesForSave } from '@/utils/images'
+import { localImageFiles, prepareImagesForSave, rewriteImageReferences } from '@/utils/images'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import * as prose from './prose'
 import type { Lang } from '@/types'
@@ -41,12 +42,21 @@ import type { Lang } from '@/types'
 async function getMarkdown(): Promise<string> {
   const milkdown = useMilkdown()
   const editor = useEditorStore()
+  if (useUI().sourceMode.value) return sourceArea()?.value ?? editor.doc.content
   try {
     const md = await milkdown.getMarkdown()
-    return md || editor.doc.content
+    return md ?? editor.doc.content
   } catch {
     return editor.doc.content
   }
+}
+
+function unchangedDocument(): () => boolean {
+  const store = useEditorStore()
+  const session = store.loadSignal
+  const content = store.doc.content
+  const sourceMode = useUI().sourceMode.value
+  return () => session === store.loadSignal && content === store.doc.content && sourceMode === useUI().sourceMode.value
 }
 
 function withEditor(fn: (editor: Editor) => void): void {
@@ -71,7 +81,8 @@ export async function newFile(): Promise<void> {
 }
 
 export function newWindow(): void {
-  showToast('多窗口功能需要桌面运行时支持，v1 暂未开放', 'info')
+  if (!requireTauri('新建窗口')) return
+  void import('@tauri-apps/api/core').then(({ invoke }) => invoke('new_window'))
 }
 
 export async function openFileDialog(): Promise<void> {
@@ -96,50 +107,51 @@ export function quickOpen(): void {
  * `asset://` URLs (which actually render). Then save to `path` and return the
  * resulting file identity.
  */
-async function persistAndSave(
-  save: (content: string) => Promise<{ path: string; name?: string }>,
-  path: string,
-): Promise<{ path: string; name?: string }> {
-  const content = await getMarkdown()
-  const prepared = await prepareImagesForSave(content, path)
-  const ed = useMilkdown().getEditor()
-  for (const m of prepared.displayMappings) prose.replaceImageSrc(ed, m.old, m.display)
-  if (prepared.errors > 0) {
-    showToast(
-      `有 ${prepared.errors} 张图片未能保存到本地（网络或读取失败），已保留原链接`,
-      'error',
-    )
-  }
-  return save(prepared.content)
+// Serialize saves: an older write must never finish after a newer save.
+let saveQueue: Promise<void> = Promise.resolve()
+function queueSave(as: boolean): Promise<void> {
+  const editor = useEditorStore()
+  const session = editor.loadSignal
+  const job = saveQueue.then(async () => {
+    if (session !== editor.loadSignal) return
+    let path = as ? null : editor.doc.path
+    if (!path) path = await useTauri().pickSave(editor.doc.name || 'untitled.md')
+    if (!path || session !== editor.loadSignal) return
+    const revisionContent = editor.doc.content
+    const content = await getMarkdown()
+    if (session !== editor.loadSignal) return
+    const prepared = await prepareImagesForSave(content, path)
+    const result = as || !editor.doc.path
+      ? await useTauri().saveFileAs(path, prepared.content)
+      : await useTauri().saveFile(path, prepared.content)
+    if (session !== editor.loadSignal) return
+    editor.doc.path = result.path
+    editor.doc.name = result.path.split(/[\\/]/).pop() || 'untitled.md'
+    // Keep newer edits dirty; only normalize images when this exact revision was saved.
+    let savedDisplay = content
+    if (editor.doc.content === revisionContent) {
+      const mappings = new Map(prepared.displayMappings.map(m => [m.old, m.display]))
+      savedDisplay = rewriteImageReferences(content, mappings)
+      editor.updateContent(savedDisplay)
+      if (!useUI().sourceMode.value) {
+        const ed = useMilkdown().getEditor()
+        for (const mapping of prepared.displayMappings) prose.replaceImageSrc(ed, mapping.old, mapping.display)
+      }
+    }
+    editor.markSaved(savedDisplay)
+    if (prepared.errors) showToast(`有 ${prepared.errors} 张图片未能保存到本地，已保留原链接`, 'error')
+    await useFilesStore().addRecent(result.path)
+  })
+  saveQueue = job.catch(() => {})
+  return job
 }
 
 export async function saveFile(): Promise<void> {
-  if (!requireTauri('保存')) return
-  const editor = useEditorStore()
-  if (!editor.doc.path) {
-    await saveFileAs()
-    return
-  }
-  await persistAndSave(
-    async (content) => {
-      const r = await useTauri().saveFile(editor.doc.path as string, content)
-      return { path: r.path }
-    },
-    editor.doc.path,
-  )
-  editor.markSaved()
+  if (requireTauri('保存')) await queueSave(false)
 }
 
 export async function saveFileAs(): Promise<void> {
-  if (!requireTauri('另存为')) return
-  const editor = useEditorStore()
-  const path = await useTauri().pickSave(editor.doc.name || 'untitled.md')
-  if (!path) return
-  const res = await persistAndSave((content) => useTauri().saveFileAs(path, content), path)
-  editor.doc.path = res.path
-  editor.doc.name = res.name ?? (path.split(/[\\/]/).pop() || 'untitled.md')
-  editor.markSaved()
-  await useFilesStore().addRecent(res.path)
+  if (requireTauri('另存为')) await queueSave(true)
 }
 
 export async function deleteCurrentFile(): Promise<void> {
@@ -149,14 +161,19 @@ export async function deleteCurrentFile(): Promise<void> {
     return
   }
   if (!requireTauri('删除')) return
-  if (!window.confirm(`确定删除文件「${editor.doc.name}」？此操作不可恢复。`)) return
+  const session = editor.loadSignal
+  const content = editor.doc.content
+  const path = editor.doc.path
+  const { confirm } = await import('@tauri-apps/plugin-dialog')
+  if (!await confirm(`确定删除文件「${editor.doc.name}」？此操作不可恢复。`, { title: '删除文件', kind: 'warning' })) return
+  if (session !== editor.loadSignal || content !== editor.doc.content) return
   try {
-    await useTauri().deleteFile(editor.doc.path)
+    await useTauri().deleteFile(path)
     showToast('已删除', 'info')
   } catch {
-    /* toast already shown by bridge */
+    return
   }
-  await newFile()
+  if (session === editor.loadSignal && content === editor.doc.content) editor.loadFromText('', null, 'untitled.md')
 }
 
 export function saveAll(): void {
@@ -178,20 +195,50 @@ export function printDocument(): void {
 }
 
 export function closeWindow(): void {
-  window.close()
+  if (isTauri()) {
+    void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => getCurrentWindow().close())
+  } else window.close()
+}
+
+function sourceArea(): HTMLTextAreaElement | null {
+  return useUI().sourceMode.value ? document.querySelector<HTMLTextAreaElement>('.source-textarea') : null
+}
+
+function replaceSourceSelection(text: string): boolean {
+  const area = sourceArea()
+  if (!area) return false
+  area.focus()
+  if (!document.execCommand('insertText', false, text)) {
+    area.setRangeText(text, area.selectionStart, area.selectionEnd, 'end')
+  }
+  area.dispatchEvent(new Event('input', { bubbles: true }))
+  return true
 }
 
 /* ---------------------------- edit ---------------------------- */
 
 export function undo(): void {
+  const area = sourceArea()
+  if (area) { area.focus(); document.execCommand('undo'); return }
   withEditor((e) => prose.undo(e))
 }
 
 export function redo(): void {
+  const area = sourceArea()
+  if (area) { area.focus(); document.execCommand('redo'); return }
   withEditor((e) => prose.redo(e))
 }
 
 export function cut(): void {
+  const unchanged = unchangedDocument()
+  const area = sourceArea()
+  if (area) {
+    const { selectionStart: from, selectionEnd: to } = area
+    void writeClipboardText(area.value.slice(from, to)).then(ok => {
+      if (ok && unchanged() && sourceArea() === area) { area.setSelectionRange(from, to); replaceSourceSelection('') }
+    })
+    return
+  }
   const editor = useMilkdown().getEditor()
   const range = prose.getSelectionRange(editor)
   if (!range || range.empty) {
@@ -200,6 +247,7 @@ export function cut(): void {
   }
   const text = prose.getSelectionText(editor)
   void writeClipboardText(text).then((ok) => {
+    if (!unchanged()) return
     if (!ok) {
       showToast('剪切失败：无法写入系统剪贴板', 'error')
       return
@@ -212,6 +260,8 @@ export function cut(): void {
 }
 
 export function copySelection(): void {
+  const area = sourceArea()
+  if (area) { void writeClipboardText(area.value.slice(area.selectionStart, area.selectionEnd)); return }
   const text = prose.getSelectionText(useMilkdown().getEditor())
   if (!text) {
     showToast('请先选中要复制的内容', 'info')
@@ -224,27 +274,35 @@ export function copySelection(): void {
 
 /** Paste the clipboard, letting Markdown syntax in it take effect. */
 export function paste(): void {
+  const unchanged = unchangedDocument()
   void (async () => {
     const text = await readClipboardText()
+    if (!unchanged()) return
     if (!text) {
       showToast('无法读取剪贴板内容（可改用 Ctrl+V）', 'error')
       return
     }
-    withEditor((e) => e.action(insert(text)))
+    if (!replaceSourceSelection(text)) withEditor((e) => e.action(insert(text)))
   })()
 }
 
 export async function copyAsMarkdown(): Promise<void> {
-  await copyText(await getMarkdown())
+  const area = sourceArea()
+  if (area) { await copyText(area.value.slice(area.selectionStart, area.selectionEnd) || area.value); return }
+  const editor = useMilkdown().getEditor()
+  const selected = editor ? prose.getSelectionMarkdown(editor) : null
+  await copyText(selected ?? await getMarkdown())
 }
 
 export async function pasteAsPlainText(): Promise<void> {
+  const unchanged = unchangedDocument()
   const text = await readClipboardText()
+  if (!unchanged()) return
   if (!text) {
     showToast('无法读取剪贴板内容（可改用 Ctrl+Shift+V）', 'error')
     return
   }
-  withEditor((e) => prose.insertPlainText(e, text))
+  if (!replaceSourceSelection(text)) withEditor((e) => prose.insertPlainText(e, text))
 }
 
 async function copyText(text: string): Promise<void> {
@@ -253,6 +311,8 @@ async function copyText(text: string): Promise<void> {
 }
 
 export function selectAll(): void {
+  const area = sourceArea()
+  if (area) { area.focus(); area.select(); return }
   withEditor((e) => prose.selectAll(e))
 }
 
@@ -289,9 +349,13 @@ export function deleteSelection(): void {
   })
 }
 
-export function openFind(find = true): void {
+export function openFind(): void {
   useUI().openFind()
-  void find
+}
+
+export function openReplace(): void {
+  useFind().replaceVisible.value = true
+  useUI().openFind()
 }
 
 /* ---------------------------- paragraph ---------------------------- */
@@ -535,42 +599,50 @@ export function insertHyperlink(): void {
   })
 }
 
-export function insertLocalImage(): void {
-  pickAndInsertImage()
+export async function insertLocalImage(): Promise<void> {
+  const unchanged = unchangedDocument()
+  if (isTauri() && localStorage.getItem('typo-image-insert-mode') === 'none') {
+    const { open } = await import('@tauri-apps/plugin-dialog')
+    const path = await open({ multiple: false, filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'] }] })
+    if (typeof path === 'string' && unchanged()) withEditor(editor => insertImage(editor, convertFileSrc(path), ''))
+  } else pickAndInsertImage()
 }
 
 /** Open a file picker and insert the chosen image (relative asset when possible). */
 export function pickAndInsertImage(): void {
+  const unchanged = unchangedDocument()
+  const docPath = useEditorStore().doc.path
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = 'image/*'
   input.onchange = async () => {
     const file = input.files?.[0]
     input.remove()
-    if (!file) return
+    if (!file || !unchanged()) return
     const editor = useEditorStore()
     const e = useMilkdown().getEditor()
     if (!e) return
     const filename = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`
-    if (editor.doc.path && isTauri()) {
+    if (docPath && isTauri()) {
       try {
         const buf = await file.arrayBuffer()
-        const rel = await useTauri().writeAsset(editor.doc.path, filename, new Uint8Array(buf))
+        const rel = await useTauri().writeAsset(docPath, filename, new Uint8Array(buf))
         // Insert an absolute `asset://` URL so the webview can render it right
         // away; the on-disk file keeps a relative `./assets/…` ref after saving.
-        const abs = nativeJoin(dirname(editor.doc.path), rel)
-        insertImage(e, convertFileSrc(abs), file.name)
+        const abs = nativeJoin(dirname(docPath), rel)
+        if (unchanged()) insertImage(e, convertFileSrc(abs), file.name)
         return
       } catch {
         /* fall through to data-url */
       }
     }
-    const dataUrl = await new Promise<string>((res) => {
+    const dataUrl = await new Promise<string>((res, reject) => {
       const r = new FileReader()
       r.onload = () => res(r.result as string)
+      r.onerror = () => reject(r.error ?? new Error('读取图片失败'))
       r.readAsDataURL(file)
     })
-    insertImage(e, dataUrl, file.name)
+    if (unchanged()) insertImage(e, dataUrl, file.name)
   }
   input.click()
 }
@@ -588,16 +660,14 @@ export async function openLink(): Promise<void> {
     showToast('光标不在链接上', 'info')
     return
   }
-  if (isTauri()) {
-    try {
-      const { openUrl } = await import('@tauri-apps/plugin-opener')
-      await openUrl(href)
-      return
-    } catch {
-      /* fall through to the web fallback */
-    }
+  if (!/^(https?:|mailto:)/i.test(href)) {
+    showToast('不支持的链接协议', 'error')
+    return
   }
-  window.open(href, '_blank')
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core')
+    await invoke('open_external_url', { url: href })
+  } else window.open(href, '_blank', 'noopener,noreferrer')
 }
 
 /** Copy the `href` of the link under the caret to the clipboard. */
@@ -645,25 +715,52 @@ export function insertFromIPhone(): void {
 
 /** Reload all images — re-focus the editor so decorations/embeds rebuild. */
 export function reloadAllImages(): void {
-  const editor = useMilkdown().getEditor()
-  if (editor) prose.focus(editor)
+  document.querySelectorAll<HTMLImageElement>('.milkdown img').forEach(image => {
+    const src = image.src
+    image.removeAttribute('src')
+    image.src = src
+  })
   showToast('已刷新图片', 'info')
 }
 
-/** Copy every local image — needs desktop file access, deferred in v1. */
-export function copyAllImages(): void {
-  showToast('需要桌面能力，v1 暂未开放', 'info')
+async function relocateImages(move: boolean): Promise<void> {
+  if (!requireTauri(move ? '移动图片' : '复制图片')) return
+  const store = useEditorStore()
+  const session = store.loadSignal
+  const doc = store.doc
+  if (!doc.path) { showToast('请先保存文档', 'info'); return }
+  const markdown = await getMarkdown()
+  if (session !== store.loadSignal) return
+  const revisionContent = store.doc.content
+  const images = localImageFiles(markdown, doc.path)
+  if (!images.length) { showToast('文档中没有本地图片', 'info'); return }
+  const directory = await useTauri().pickDir()
+  if (!directory || session !== store.loadSignal || store.doc.content !== revisionContent) return
+  const paths = [...new Set(images.map(image => image.path))]
+  const { invoke } = await import('@tauri-apps/api/core')
+  const destinations = await invoke<string[]>('copy_image_files', { paths, directory })
+  if (session !== store.loadSignal || store.doc.content !== revisionContent) return
+  let changed = 0
+  withEditor(editor => {
+    for (const image of images) {
+      if (prose.replaceImageSrc(editor, image.src, convertFileSrc(destinations[paths.indexOf(image.path)])) > 0) changed++
+    }
+  })
+  if (changed !== images.length) throw new Error('部分图片引用未能更新，原文件已保留')
+  if (move) {
+    // Save the rewritten references before deleting any original image.
+    await saveFile()
+    if (session !== store.loadSignal || store.doc.dirty || store.doc.path !== doc.path) {
+      showToast('文档发生变化，已保留原图片', 'info')
+      return
+    }
+    for (const path of paths) await useTauri().deleteFile(path)
+  }
+  showToast(`已${move ? '移动' : '复制'} ${paths.length} 张图片`, 'info')
 }
 
-/** Move every local image — needs desktop file access, deferred in v1. */
-export function moveAllImages(): void {
-  showToast('需要桌面能力，v1 暂未开放', 'info')
-}
-
-/** Upload every local image — needs desktop file access, deferred in v1. */
-export function uploadAllImages(): void {
-  showToast('需要桌面能力，v1 暂未开放', 'info')
-}
+export async function copyAllImages(): Promise<void> { await relocateImages(false) }
+export async function moveAllImages(): Promise<void> { await relocateImages(true) }
 
 /** Open the global image / appearance settings dialog. */
 export function globalImageSettings(): void {
@@ -671,8 +768,11 @@ export function globalImageSettings(): void {
 }
 
 /** Set the image root directory — opens the settings dialog (v1 keeps it simple). */
-export function setImageRoot(): void {
-  useUI().openSettings()
+export async function setImageRoot(): Promise<void> {
+  if (!requireTauri('设置图片根目录')) return
+  const unchanged = unchangedDocument()
+  const directory = await useTauri().pickDir()
+  if (directory && unchanged()) withEditor(editor => prose.setImageRoot(editor, directory))
 }
 
 /** Set the local-image insertion behaviour (no special op / copy / assets). */
@@ -691,21 +791,7 @@ export function setImageInsertMode(mode: 'none' | 'current' | 'assets'): void {
 
 export function toggleSourceMode(): void {
   const ui = useUI()
-  const milkdown = useMilkdown()
-  const editor = useEditorStore()
-  if (!ui.sourceMode.value) {
-    void (async () => {
-      try {
-        const md = await milkdown.getMarkdown()
-        if (md) editor.doc.content = md
-      } catch {
-        /* keep store content */
-      }
-      ui.sourceMode.value = true
-    })()
-  } else {
-    ui.sourceMode.value = false
-  }
+  ui.sourceMode.value = !ui.sourceMode.value
 }
 
 export function setMode(mode: 'normal' | 'focus' | 'typewriter'): void {
@@ -745,6 +831,13 @@ export function toggleStatusBar(): void {
 }
 
 export function toggleFullscreen(): void {
+  if (isTauri()) {
+    void import('@tauri-apps/api/window').then(async ({ getCurrentWindow }) => {
+      const window = getCurrentWindow()
+      await window.setFullscreen(!await window.isFullscreen())
+    })
+    return
+  }
   if (document.fullscreenElement) {
     void document.exitFullscreen()
   } else {
@@ -826,4 +919,8 @@ export function markActive(...names: string[]): boolean {
 
 export function nodeActive(name: string, attrs?: Record<string, unknown>): boolean {
   return prose.isNodeActive(useMilkdown().getEditor(), name, attrs)
+}
+
+export function taskListActive(): boolean {
+  return prose.isTaskList(useMilkdown().getEditor())
 }

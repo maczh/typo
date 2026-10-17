@@ -12,8 +12,9 @@ const outDir = resolve(root, 'tests', '.out')
 
 const entries = [
   'tests/file.test.ts',
+  'tests/review.test.ts',
   'tests/exporter-toHtml.test.ts',
-  'tests/exporter-toDocx.test.ts',
+  // DOCX export was removed from the application; its legacy suite is not runnable.
   'tests/exporter-toMarkdown.test.ts',
   'tests/outline.test.ts',
   'tests/i18n.test.ts',

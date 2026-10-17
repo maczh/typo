@@ -1,0 +1,9 @@
+{
+  "status": "pass",
+  "checks": [
+    "production app mounts",
+    "Markdown loads",
+    "keyboard editing works",
+    "no uncaught exceptions"
+  ]
+}

@@ -1,0 +1,50 @@
+[
+  {
+    "name": "source input immediately marks document dirty and autosave uses that source",
+    "status": "pass"
+  },
+  {
+    "name": "cancelled new/open preserves unsaved content",
+    "status": "pass"
+  },
+  {
+    "name": "edits made while saving remain dirty",
+    "status": "pass"
+  },
+  {
+    "name": "save-as completion cannot rename or mark a switched document saved",
+    "status": "pass"
+  },
+  {
+    "name": "late open response does not overwrite a newer open",
+    "status": "pass"
+  },
+  {
+    "name": "typing while open is pending is preserved",
+    "status": "pass"
+  },
+  {
+    "name": "replace treats dollar substitutions literally",
+    "status": "pass"
+  },
+  {
+    "name": "failed delete preserves the current document",
+    "status": "pass"
+  },
+  {
+    "name": "queued saves cannot write out of order",
+    "status": "pass"
+  },
+  {
+    "name": "PDF frame blocks scripts and contains one complete HTML document",
+    "status": "pass"
+  },
+  {
+    "name": "underline and bold survive Markdown round-trip",
+    "status": "pass"
+  },
+  {
+    "name": "opening and returning to unchanged source leaves the document clean",
+    "status": "pass"
+  }
+]

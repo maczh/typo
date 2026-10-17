@@ -1,7 +1,10 @@
+import { unified } from 'unified'
+import remarkParse from 'remark-parse'
+import remarkGfm from 'remark-gfm'
 import { invoke } from '@tauri-apps/api/core'
 import { convertFileSrc, isTauri } from '@tauri-apps/api/core'
 import { useTauri } from '@/composables/useTauri'
-import { dirname, nativeJoin } from '@/utils/file'
+import { dirname, nativeJoin, normalizeFsPath } from '@/utils/file'
 
 /**
  * Image reference handling for Markdown save / load.
@@ -35,9 +38,6 @@ interface RemoteImage {
 // tolerate ones written by other editors such as Typora) or wrapped in `<…>`;
 // an optional quoted title may follow. `[^)\n]+?` keeps a match on a single line
 // and stops at the closing `)`.
-const MD_IMG_RE = /!\[[^\]]*\]\(\s*(<[^<>]*>|[^)\n]+?)\s*(?:"[^"]*"|'[^']*')?\s*\)/g
-const HTML_IMG_RE = /<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi
-
 /** Strip the optional `<…>` wrapper CommonMark allows around a link/image URL. */
 function unwrapRef(token: string): string {
   const t = token.trim()
@@ -128,11 +128,79 @@ function extFromUrl(url: string): string {
  * (md + html forms). Tokens are returned verbatim — Markdown ones may still
  * carry the optional `<…>` wrapper; use `unwrapRef` before resolving them.
  */
+interface ImageSpan { start: number; end: number; token: string }
+interface MarkdownNode {
+  type: string
+  identifier?: string
+  children?: MarkdownNode[]
+  position?: { start: { offset?: number }; end: { offset?: number } }
+}
+const imageParser = unified().use(remarkParse).use(remarkGfm)
+
+/** Use syntax positions so code, prose and ordinary links are never rewritten. */
+function imageSpans(md: string): ImageSpan[] {
+  const tree = imageParser.parse(md) as MarkdownNode
+  const references = new Set<string>()
+  const nodes: MarkdownNode[] = []
+  function visit(node: MarkdownNode): void {
+    nodes.push(node)
+    if (node.type === 'imageReference' && node.identifier) references.add(node.identifier.toLowerCase())
+    node.children?.forEach(visit)
+  }
+  visit(tree)
+  const spans: ImageSpan[] = []
+  for (const node of nodes) {
+    const start = node.position?.start.offset
+    const end = node.position?.end.offset
+    if (start === undefined || end === undefined) continue
+    const raw = md.slice(start, end)
+    if (node.type === 'html') {
+      for (const match of raw.matchAll(/<img\b(?:[^"'>]|"[^"]*"|'[^']*')*>/gi)) {
+        const attr = /\ssrc\s*=\s*(["'])(.*?)\1/i.exec(match[0])
+        if (!attr) continue
+        const offset = attr.index + attr[0].indexOf(attr[1]) + 1
+        const at = start + match.index! + offset
+        spans.push({ start: at, end: at + attr[2].length, token: attr[2] })
+      }
+      continue
+    }
+    if (node.type !== 'image' && !(node.type === 'definition' && references.has(node.identifier?.toLowerCase() ?? ''))) continue
+    const prefix = node.type === 'image' ? /^!\[(?:\\.|[^\]\\])*\]\(\s*/ : /^ {0,3}\[[^\]]+\]:\s*/
+    const match = prefix.exec(raw)
+    if (!match) continue
+    let at = match[0].length
+    let until = at
+    if (raw[at] === '<') {
+      at++
+      until = at
+      while (until < raw.length && raw[until] !== '>') until += raw[until] === '\\' ? 2 : 1
+    } else {
+      let depth = 0
+      while (until < raw.length) {
+        const ch = raw[until]
+        if (ch === '\\') { until += 2; continue }
+        if (/\s/.test(ch) || (ch === ')' && depth === 0)) break
+        if (ch === '(') depth++
+        if (ch === ')') depth--
+        until++
+      }
+    }
+    if (until > at) spans.push({ start: start + at, end: start + until, token: raw.slice(at, until) })
+  }
+  return spans.sort((a, b) => a.start - b.start)
+}
+
 function collectSrcs(md: string): string[] {
-  const set = new Set<string>()
-  for (const m of md.matchAll(MD_IMG_RE)) if (m[1]) set.add(m[1])
-  for (const m of md.matchAll(HTML_IMG_RE)) if (m[1]) set.add(m[1])
-  return [...set]
+  return [...new Set(imageSpans(md).map(span => span.token))]
+}
+
+export function rewriteImageReferences(md: string, mappings: ReadonlyMap<string, string>): string {
+  let out = md
+  for (const span of imageSpans(md).reverse()) {
+    const replacement = mappings.get(span.token)
+    if (replacement !== undefined) out = out.slice(0, span.start) + replacement + out.slice(span.end)
+  }
+  return out
 }
 
 function dataUrlToBytes(dataUrl: string): { bytes: Uint8Array; ext: string } {
@@ -205,6 +273,17 @@ export async function persistImageFile(file: File, docPath: string | null): Prom
   return blobToDataUrl(file)
 }
 
+/** Resolve Typora's per-document image root, falling back to the document folder. */
+export function documentImageRoot(md: string, docPath: string): string {
+  const frontMatter = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(md)
+  const match = frontMatter && /^typora-root-url:\s*(.+)$/m.exec(frontMatter[1])
+  if (!match) return dirname(docPath)
+  let root = match[1].trim()
+  if (root.startsWith('"')) { try { root = JSON.parse(root); if (typeof root !== 'string') return dirname(docPath) } catch { return dirname(docPath) } }
+  else if (root.startsWith("'")) root = root.slice(1, -1).replace(/''/g, "'")
+  return /^(?:\/|[a-z]:[\\/]|\\\\)/i.test(root) ? root : nativeJoin(dirname(docPath), root)
+}
+
 /** Convert a local reference to an absolute `asset://` URL the webview can load. */
 function toDisplaySrc(src: string, docDir: string): string {
   if (!isLocalRef(src)) return src // remote / data / blob / asset url → render as-is
@@ -227,27 +306,36 @@ function toDisplaySrc(src: string, docDir: string): string {
 }
 
 /** Compute a document-relative path from an absolute `asset://` URL. */
-function assetUrlToRelative(src: string, docPath: string): string | null {
+function assetUrlToRelative(src: string, docPath: string, root = dirname(docPath)): string | null {
   let abs: string | null = null
   if (/^asset:/i.test(src)) {
     const m = /^asset:\/\/[^/]*\/(.*)$/.exec(src)
-    if (m) abs = decodeURIComponent(m[1])
+    if (m) abs = safeDecode(m[1])
   } else if (/^https?:\/\/asset\.localhost\//i.test(src)) {
     const m = /^https?:\/\/asset\.localhost\/(.*)$/.exec(src)
-    if (m) abs = decodeURIComponent(m[1])
+    if (m) abs = safeDecode(m[1])
   }
   if (!abs) return null
   // Re-encode so the value written back into the .md stays a valid Markdown
   // destination even when the path contains spaces / parentheses.
-  return encodeRef(fsRelative(dirname(docPath), abs))
+  return encodeRef(fsRelative(root, abs))
 }
 
 /** Relative path (`./` or `../` prefixed) from `fromDir` to an absolute `abs`. */
 function fsRelative(fromDir: string, abs: string): string {
+  const fromDrive = /^[a-z]:/i.exec(fromDir)?.[0].toLowerCase()
+  const toDrive = /^[a-z]:/i.exec(abs)?.[0].toLowerCase()
+  if (fromDrive !== toDrive && (fromDrive || toDrive)) return abs
+  fromDir = normalizeFsPath(fromDir)
+  abs = normalizeFsPath(abs)
+  if (fromDir.startsWith('//') || abs.startsWith('//')) {
+    const share = (path: string) => path.split('/').slice(0, 4).join('/').toLowerCase()
+    if (share(fromDir) !== share(abs)) return abs
+  }
   const from = fromDir.split(/[\\/]+/).filter(Boolean)
   const to = abs.split(/[\\/]+/).filter(Boolean)
   let i = 0
-  while (i < from.length && i < to.length && from[i] === to[i]) i += 1
+  while (i < from.length && i < to.length && (fromDrive ? from[i].toLowerCase() === to[i].toLowerCase() : from[i] === to[i])) i += 1
   const up = from.length - i
   const rel = [...Array(up).fill('..'), ...to.slice(i)]
   const r = rel.join('/')
@@ -262,15 +350,15 @@ function fsRelative(fromDir: string, abs: string): string {
  */
 export function localizeMarkdown(md: string, docPath: string | null): string {
   if (!isTauri() || !docPath) return md
-  const dir = dirname(docPath)
-  let out = md
+  const dir = documentImageRoot(md, docPath)
+  const mappings = new Map<string, string>()
   for (const token of collectSrcs(md)) {
     const src = unwrapRef(token)
     if (!src || !isLocalRef(src)) continue
     const display = toDisplaySrc(src, dir)
-    if (display !== src) out = out.split(token).join(display)
+    if (display !== src) mappings.set(token, display)
   }
-  return out
+  return rewriteImageReferences(md, mappings)
 }
 
 export interface SaveImageResult {
@@ -305,6 +393,7 @@ export async function prepareImagesForSave(md: string, docPath: string): Promise
 
   const dir = dirname(docPath)
   const tauri = useTauri()
+  const mappings = new Map<string, string>()
   const usedNames = new Set<string>()
   let counter = 0
 
@@ -327,13 +416,13 @@ export async function prepareImagesForSave(md: string, docPath: string): Promise
         const relPath = await tauri.writeAsset(docPath, name, bytes) // "<stem>_imgs/<name>"
         // Encode so the on-disk ref stays a valid Markdown destination even when
         // the document name (and thus the `<stem>_imgs` folder) contains spaces.
-        const newRel = `./${encodeRef(relPath)}`
-        result.content = result.content.split(token).join(newRel)
+        const newRel = encodeRef(fsRelative(documentImageRoot(md, docPath), nativeJoin(dir, relPath)))
+        mappings.set(token, newRel)
         const abs = nativeJoin(dir, relPath)
         result.displayMappings.push({ old: src, display: convertFileSrc(abs) })
       } else if (/^asset:/i.test(src) || /^https?:\/\/asset\.localhost/i.test(src)) {
-        const rel = assetUrlToRelative(src, docPath)
-        if (rel && rel !== src) result.content = result.content.split(token).join(rel)
+        const rel = assetUrlToRelative(src, docPath, documentImageRoot(md, docPath))
+        if (rel && rel !== src) mappings.set(token, rel)
       }
       // Other local references (relative / absolute fs paths) are left as-is;
       // they are already on disk and will be localized again on the next open.
@@ -342,5 +431,18 @@ export async function prepareImagesForSave(md: string, docPath: string): Promise
     }
   }
 
+  result.content = rewriteImageReferences(md, mappings)
   return result
+}
+
+/** Local image sources paired with native paths, for batch copy/move. */
+export function localImageFiles(md: string, docPath: string): { src: string; path: string }[] {
+  return collectSrcs(md).flatMap(token => {
+    const src = unwrapRef(token)
+    if (needsDownload(src)) return []
+    const asset = /^asset:\/\/[^/]*\/(.*)$/.exec(src) || /^https?:\/\/asset\.localhost\/(.*)$/.exec(src)
+    const path = asset ? safeDecode(asset[1]) : safeDecode(src)
+    if (!path || /^(?:data|blob|https?):/i.test(path)) return []
+    return [{ src, path: /^(?:\/|[a-z]:[\\/]|\\\\)/i.test(path) ? path : nativeJoin(documentImageRoot(md, docPath), path) }]
+  })
 }

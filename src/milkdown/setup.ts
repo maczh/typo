@@ -213,6 +213,16 @@ export async function createEditor(
     try {
       editor.action(replaceAll(markdown, resetHistory))
       loadedMarkdown = crepe.getMarkdown()
+    } catch (error) {
+      // A document switch can overlap with Crepe's own pending transaction
+      // (notably when source mode is toggled at the same time). ProseMirror
+      // rejects that transaction; retrying on the next turn lets the pending
+      // update settle without losing the requested document.
+      if (error instanceof Error && /mismatched transaction/i.test(error.message)) {
+        setTimeout(() => loadMarkdown(markdown, resetHistory), 0)
+        return
+      }
+      throw error
     } finally {
       loading = false
     }

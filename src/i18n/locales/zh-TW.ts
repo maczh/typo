@@ -19,6 +19,7 @@ export default {
     save: '儲存',
     saveAs: '另存為…',
     close: '關閉',
+    exit: '退出',
     recent: '最近檔案',
     export: '匯出',
     preferences: '偏好設定',

@@ -19,6 +19,7 @@ export default {
     save: '保存',
     saveAs: '另存为…',
     close: '关闭',
+    exit: '退出',
     recent: '最近文件',
     export: '导出',
     preferences: '偏好设置',

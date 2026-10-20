@@ -18,6 +18,8 @@ export function useDocumentClose(): void {
     if (!isTauri()) { window.addEventListener('beforeunload', beforeUnload); return }
     const win = (await import('@tauri-apps/api/window')).getCurrentWindow()
     const off = await win.onCloseRequested(async (event) => {
+      // Tauri may deliver a second close request when close() is called from
+      // inside this handler. Let the native close proceed exactly once.
       if (closing || !editor.doc.dirty) return
       event.preventDefault()
       if (prompting) return

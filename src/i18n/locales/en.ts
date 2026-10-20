@@ -19,6 +19,7 @@ export default {
     save: 'Save',
     saveAs: 'Save As…',
     close: 'Close',
+    exit: 'Exit',
     recent: 'Recent',
     export: 'Export',
     preferences: 'Preferences',

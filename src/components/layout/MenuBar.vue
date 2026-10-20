@@ -62,6 +62,7 @@ const menus = computed<{ id: string; titleKey: string; items: MenuItem[] }[]>(()
       { id: 'save', titleKey: 'menu.save', shortcut: hk('save') },
       { id: 'saveAs', titleKey: 'menu.saveAs', shortcut: hk('saveAs') },
       { id: 'close', titleKey: 'menu.close', shortcut: hk('close') },
+      { id: 'exit', titleKey: 'menu.exit' },
       { id: 'recent', titleKey: 'menu.recent' },
       {
         id: 'export',
@@ -329,6 +330,7 @@ function runCommand(id: string): void {
     case 'save': void A.saveFile(); break
     case 'saveAs': void A.saveFileAs(); break
     case 'close': A.closeWindow(); break
+    case 'exit': A.exitApp(); break
     case 'recent': ui.openQuickOpen(); break
     case 'export-md': void doExport('markdown'); break
     case 'export-html': void doExport('html'); break

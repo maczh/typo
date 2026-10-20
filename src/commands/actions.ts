@@ -200,6 +200,13 @@ export function closeWindow(): void {
   } else window.close()
 }
 
+/** Exit the whole desktop application from File > Exit. */
+export function exitApp(): void {
+  // Route through the same close-request guard so Exit never discards an
+  // unsaved document without confirmation.
+  closeWindow()
+}
+
 function sourceArea(): HTMLTextAreaElement | null {
   return useUI().sourceMode.value ? document.querySelector<HTMLTextAreaElement>('.source-textarea') : null
 }
@@ -729,7 +736,13 @@ async function relocateImages(move: boolean): Promise<void> {
   const session = store.loadSignal
   const doc = store.doc
   if (!doc.path) { showToast('请先保存文档', 'info'); return }
-  const markdown = await getMarkdown()
+  // During a document switch the editor view can still be catching up with
+  // `loadSignal`. The store is the authoritative snapshot for file actions,
+  // so do not mistake a transiently empty Milkdown result for an image-free
+  // document.
+  // `doc.content` is kept in sync by both Milkdown and source mode and avoids
+  // accidentally reading a stale hidden editor when the user switches modes.
+  const markdown = store.doc.content
   if (session !== store.loadSignal) return
   const revisionContent = store.doc.content
   const images = localImageFiles(markdown, doc.path)

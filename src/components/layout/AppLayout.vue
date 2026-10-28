@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { invoke } from '@tauri-apps/api/core'
-import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import type { UnlistenFn } from '@tauri-apps/api/event'
 import { isTauri } from '@/composables/useTauri'
 import { onMounted, onBeforeUnmount } from 'vue'
 import MenuBar from './MenuBar.vue'
@@ -13,6 +13,7 @@ import FindDialog from '../dialogs/FindDialog.vue'
 import QuickOpenDialog from '../dialogs/QuickOpenDialog.vue'
 import RecoveryDialog from '../dialogs/RecoveryDialog.vue'
 import SettingsDialog from '../dialogs/SettingsDialog.vue'
+import TabBar from './TabBar.vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useFilesStore } from '@/stores/files'
 import { useUI } from '@/composables/useUI'
@@ -21,9 +22,11 @@ import { useTauri } from '@/composables/useTauri'
 import { useHotkeys } from '@/composables/useHotkeys'
 import { useDocumentClose } from '@/composables/useDocumentClose'
 import { useWindowTitle } from '@/composables/useWindowTitle'
+import { useEditorStore } from '@/stores/editor'
 
 const settingsStore = useSettingsStore()
 const filesStore = useFilesStore()
+const editorStore = useEditorStore()
 const ui = useUI()
 const autosave = useAutosave()
 const tauri = useTauri()
@@ -45,9 +48,15 @@ async function openPendingFiles(): Promise<void> {
     try { await filesStore.openFile(path) } catch { /* The bridge already displays the file error. */ }
   }
 }
+async function openPaths(paths: string[]): Promise<void> {
+  for (const path of paths) {
+    try { await filesStore.openFile(path) } catch { /* bridge displays the error */ }
+  }
+}
 onMounted(async () => {
   if (isTauri()) {
-    const unlisten = await listen('open-files', () => { void openPendingFiles() })
+    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    const unlisten = await getCurrentWindow().listen<string[]>('open-files', (event) => { void openPaths(event.payload) })
     if (layoutDisposed) unlisten()
     else unlistenOpenFiles = unlisten
   }
@@ -57,7 +66,15 @@ onMounted(async () => {
   // Crash-recovery: open the dialog if a newer backup exists.
   try {
     const items = await tauri.checkRecovery()
-    if (items.length > 0) ui.openRecovery()
+    const drafts = items.filter((item) => item.doc_path.startsWith('untitled:'))
+    for (const item of drafts) {
+      try {
+        const recovered = await tauri.openFile(item.backup_path)
+        editorStore.openTab(recovered.content, null, 'untitled.md', true)
+        await tauri.clearRecovery(item.doc_path)
+      } catch { /* keep the recovery item available for manual recovery */ }
+    }
+    if (items.some((item) => !item.doc_path.startsWith('untitled:'))) ui.openRecovery()
   } catch {
     /* backend unavailable */
   }
@@ -73,6 +90,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="app-layout">
     <MenuBar />
+    <TabBar />
     <Toolbar v-if="!sourceMode" />
     <div class="app-body">
       <SideBar v-if="sidebarVisible" />

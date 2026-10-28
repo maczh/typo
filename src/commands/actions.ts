@@ -81,9 +81,9 @@ export async function newFile(): Promise<void> {
   await useFilesStore().newFile()
 }
 
-export function newWindow(): void {
+export function newWindow(path?: string | null): void {
   if (!requireTauri('新建窗口')) return
-  void import('@tauri-apps/api/core').then(({ invoke }) => invoke('new_window'))
+  void import('@tauri-apps/api/core').then(({ invoke }) => invoke('new_window', { path: path ?? null }))
 }
 
 export async function openFileDialog(): Promise<void> {
@@ -153,6 +153,15 @@ export async function saveFile(): Promise<void> {
 
 export async function saveFileAs(): Promise<void> {
   if (requireTauri('另存为')) await queueSave(true)
+}
+
+/** Close one tab after persisting its current content. */
+export async function closeTab(id: string): Promise<void> {
+  const editor = useEditorStore()
+  if (editor.activeTabId !== id) editor.activateTab(id)
+  if (editor.doc.dirty) await saveFile()
+  if (editor.doc.dirty) return
+  editor.closeTab(id)
 }
 
 export async function deleteCurrentFile(): Promise<void> {

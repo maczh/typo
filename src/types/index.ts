@@ -10,6 +10,7 @@ export type ThemeKind = 'light' | 'dark'
 
 /** The currently open document — Markdown source is the single source of truth. */
 export interface EditorDoc {
+  id?: string
   /** Absolute path on disk; `null` means an unsaved draft. */
   path: string | null
   name: string
@@ -17,6 +18,11 @@ export interface EditorDoc {
   content: string
   dirty: boolean
   savedAt: number | null
+}
+
+export interface EditorTab {
+  id: string
+  doc: EditorDoc
 }
 
 /** A node in the document outline (H1–H6). */

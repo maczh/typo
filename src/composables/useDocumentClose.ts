@@ -30,6 +30,9 @@ export function useDocumentClose(): void {
       try {
         if (await confirmDiscard()) {
           closing = true
+          const { saveFile } = await import('@/commands/actions')
+          await saveFile()
+          if (editor.doc.dirty) { closing = false; return }
           const size = await win.outerSize()
           const position = await win.outerPosition()
           const { invoke } = await import('@tauri-apps/api/core')

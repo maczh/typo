@@ -477,7 +477,7 @@ function runCommand(id: string): void {
     <div v-if="aboutOpen" class="about-mask" @click.self="aboutOpen = false">
       <div class="about-dialog">
         <img src="/logo.png" class="about-logo" alt="Typo" />
-        <h2>{{ t('app.name') }} v0.1.3</h2>
+        <h2>{{ t('app.name') }} v0.1.5</h2>
         <p class="about-desc">A Typora-style WYSIWYG Markdown editor.</p>
         <button class="about-btn" @click="aboutOpen = false">{{ t('common.close') }}</button>
       </div>

@@ -2,6 +2,7 @@ import { ref, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { useSettingsStore } from '@/stores/settings'
 import { useTauri } from './useTauri'
+import { saveFile } from '@/commands/actions'
 
 /**
  * Periodic autosave. Every `autoSaveInterval` ms (default 30s) it writes a crash
@@ -19,11 +20,15 @@ export function useAutosave() {
   async function tick(): Promise<void> {
     if (inFlight || !settings.settings.autoSave) return
     if (!editor.doc.dirty) return
-    if (!editor.doc.path) return
-    const { path, content } = editor.doc
     inFlight = true
     try {
-      await tauri.autosave(path, content)
+      if (editor.doc.path) {
+        await saveFile()
+      } else {
+        // Unnamed documents are intentionally kept as crash-recovery drafts;
+        // they must not trigger a Save As dialog from the timer.
+        await tauri.autosave(`untitled:${editor.doc.id ?? 'current'}`, editor.doc.content)
+      }
     } catch {
       /* non-fatal — backend may be unavailable in plain dev mode */
     } finally {

@@ -1,19 +1,23 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { EditorDoc, OutlineNode } from '@/types'
+import type { EditorDoc, EditorTab, OutlineNode } from '@/types'
 
 /**
  * Editor store — owns the current document (Markdown source of truth), the live
  * outline, the cursor position and the word count.
  */
 export const useEditorStore = defineStore('editor', () => {
-  const doc = ref<EditorDoc>({
+  const initialDoc: EditorDoc = {
+    id: 'untitled-1',
     path: null,
     name: 'untitled.md',
     content: '',
     dirty: false,
     savedAt: null,
-  })
+  }
+  const doc = ref<EditorDoc>(initialDoc)
+  const tabs = ref<EditorTab[]>([{ id: initialDoc.id!, doc: initialDoc }])
+  const activeTabId = ref(initialDoc.id!)
 
   let savedContent: string | null = ''
   const outline = ref<OutlineNode[]>([])
@@ -39,6 +43,8 @@ export const useEditorStore = defineStore('editor', () => {
       savedAt: Date.now(),
     }
     updateWordCount(text)
+    const tab = tabs.value.find((item) => item.id === activeTabId.value)
+    if (tab) tab.doc = { ...doc.value }
     loadSignal.value++
   }
 
@@ -47,12 +53,16 @@ export const useEditorStore = defineStore('editor', () => {
     doc.value.content = md
     doc.value.dirty = md !== savedContent
     updateWordCount(md)
+    const tab = tabs.value.find((item) => item.id === activeTabId.value)
+    if (tab) tab.doc = { ...doc.value }
   }
 
   function markSaved(content = doc.value.content): void {
     savedContent = content
     doc.value.dirty = doc.value.content !== savedContent
     doc.value.savedAt = Date.now()
+    const tab = tabs.value.find((item) => item.id === activeTabId.value)
+    if (tab) tab.doc = { ...doc.value }
   }
 
   function setOutline(o: OutlineNode[]): void {
@@ -67,8 +77,50 @@ export const useEditorStore = defineStore('editor', () => {
     return doc.value.content
   }
 
+  function activateTab(id: string): void {
+    if (id === activeTabId.value) return
+    const target = tabs.value.find((item) => item.id === id)
+    if (!target) return
+    const current = tabs.value.find((item) => item.id === activeTabId.value)
+    if (current) current.doc = { ...doc.value }
+    activeTabId.value = id
+    doc.value = { ...target.doc }
+    savedContent = doc.value.dirty ? null : doc.value.content
+    updateWordCount(doc.value.content)
+    loadSignal.value++
+  }
+
+  function openTab(text: string, path: string | null, name: string, dirty = false): string {
+    const existing = path && tabs.value.find((item) => item.doc.path === path)
+    if (existing) { activateTab(existing.id); return existing.id }
+    const id = `${path ?? 'untitled'}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const next: EditorDoc = { id, path, name, content: text, dirty, savedAt: Date.now() }
+    const current = tabs.value.find((item) => item.id === activeTabId.value)
+    if (current) current.doc = { ...doc.value }
+    tabs.value.push({ id, doc: next })
+    activeTabId.value = id
+    doc.value = { ...next }
+    savedContent = dirty ? null : text
+    updateWordCount(text)
+    loadSignal.value++
+    return id
+  }
+
+  function closeTab(id: string): void {
+    const index = tabs.value.findIndex((item) => item.id === id)
+    if (index < 0) return
+    tabs.value.splice(index, 1)
+    if (!tabs.value.length) {
+      const fresh: EditorDoc = { id: 'untitled-1', path: null, name: 'untitled.md', content: '', dirty: false, savedAt: Date.now() }
+      tabs.value.push({ id: fresh.id!, doc: fresh })
+    }
+    if (activeTabId.value === id) activateTab(tabs.value[Math.min(index, tabs.value.length - 1)].id)
+  }
+
   return {
     doc,
+    tabs,
+    activeTabId,
     outline,
     cursor,
     wordCount,
@@ -79,6 +131,9 @@ export const useEditorStore = defineStore('editor', () => {
     setOutline,
     setCursor,
     getContent,
+    activateTab,
+    openTab,
+    closeTab,
     updateWordCount,
   }
 })

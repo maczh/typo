@@ -26,7 +26,7 @@ export const useFilesStore = defineStore('files', () => {
   async function openFile(path: string): Promise<void> {
     const request = ++openRequest
     const editor = useEditorStore()
-    if (!await confirmDiscard() || request !== openRequest) return
+    if (request !== openRequest) return
     const session = editor.loadSignal
     const previousContent = editor.doc.content
     const tauri = useTauri()
@@ -41,7 +41,7 @@ export const useFilesStore = defineStore('files', () => {
     // Rewrite local image references to absolute `asset://` URLs so they render
     // in the webview; the on-disk file keeps portable relative paths.
     const content = localizeMarkdown(result.content ?? '', result.path)
-    editor.loadFromText(content, result.path, result.name)
+    editor.openTab(content, result.path, result.name)
     // Populate / focus the sidebar directory tree on this file's folder.
     await refreshTree(dirname(path))
     await loadRecent()
@@ -49,8 +49,8 @@ export const useFilesStore = defineStore('files', () => {
 
   async function newFile(): Promise<void> {
     const request = ++openRequest
-    if (!await confirmDiscard() || request !== openRequest) return
-    useEditorStore().loadFromText('', null, 'untitled.md')
+    if (request !== openRequest) return
+    useEditorStore().openTab('', null, 'untitled.md')
   }
 
   async function refreshTree(dir: string): Promise<void> {

@@ -7,7 +7,6 @@ mod state;
 mod webview;
 
 use std::sync::Mutex;
-#[cfg(target_os = "macos")]
 use tauri::Emitter;
 use tauri::{Manager, PhysicalPosition, PhysicalSize};
 
@@ -21,14 +20,22 @@ fn take_open_files(files: tauri::State<OpenFiles>) -> Result<Vec<String>, String
 }
 
 #[tauri::command]
-async fn new_window(app: tauri::AppHandle) -> Result<(), String> {
+async fn new_window(app: tauri::AppHandle, path: Option<String>) -> Result<(), String> {
     let label = format!("document-{}", crate::state::now_ms());
-    tauri::WebviewWindowBuilder::new(&app, label, tauri::WebviewUrl::App("index.html".into()))
+    let _window = tauri::WebviewWindowBuilder::new(&app, label.clone(), tauri::WebviewUrl::App("index.html".into()))
         .title("Typo")
         .inner_size(1200.0, 800.0)
         .min_inner_size(800.0, 600.0)
         .build()
         .map_err(|e| e.to_string())?;
+    if let Some(path) = path {
+        // The new WebView must finish mounting its listener before receiving
+        // the one-shot open request.
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            let _ = app.emit_to(&label, "open-files", vec![path]);
+        });
+    }
     Ok(())
 }
 
@@ -176,7 +183,7 @@ pub fn run() {
                 if let Ok(mut pending) = files.0.lock() {
                     pending.extend(paths);
                 }
-                let _ = _handle.emit("open-files", ());
+                let _ = _handle.emit("open-files", paths);
             }
         }),
         Err(e) => {

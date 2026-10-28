@@ -81,9 +81,17 @@ export async function newFile(): Promise<void> {
   await useFilesStore().newFile()
 }
 
-export function newWindow(path?: string | null): void {
-  if (!requireTauri('新建窗口')) return
-  void import('@tauri-apps/api/core').then(({ invoke }) => invoke('new_window', { path: path ?? null }))
+/** Create a native window; resolves once the window exists. */
+export async function newWindow(path?: string | null): Promise<boolean> {
+  if (!requireTauri('新建窗口')) return false
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    await invoke('new_window', { path: path ?? null })
+    return true
+  } catch (error) {
+    showToast(String(error), 'error')
+    return false
+  }
 }
 
 export async function openFileDialog(): Promise<void> {
@@ -161,6 +169,22 @@ export async function closeTab(id: string): Promise<void> {
   if (editor.activeTabId !== id) editor.activateTab(id)
   if (editor.doc.dirty) await saveFile()
   if (editor.doc.dirty) return
+  editor.closeTab(id)
+}
+
+/**
+ * Move a tab's document into a brand-new window. The document is persisted
+ * first because the new window reads it from disk, and the tab is closed only
+ * once the window that owns it now actually exists.
+ */
+export async function moveTabToWindow(id: string): Promise<void> {
+  const editor = useEditorStore()
+  const tab = editor.tabs.find((item) => item.id === id)
+  if (!tab?.doc.path) return
+  if (editor.activeTabId !== id) editor.activateTab(id)
+  if (editor.doc.dirty) await saveFile()
+  if (editor.doc.dirty) return
+  if (!await newWindow(editor.doc.path)) return
   editor.closeTab(id)
 }
 

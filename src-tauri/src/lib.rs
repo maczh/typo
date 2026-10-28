@@ -6,35 +6,64 @@ mod state;
 #[cfg(target_os = "linux")]
 mod webview;
 
+use std::collections::HashMap;
 use std::sync::Mutex;
+#[cfg(target_os = "macos")]
 use tauri::Emitter;
 use tauri::{Manager, PhysicalPosition, PhysicalSize};
 
+/// Documents handed to the app on the command line, drained by the first
+/// window that boots.
 #[derive(Default)]
 struct OpenFiles(Mutex<Vec<String>>);
 
+/// Documents a window must open as soon as its webview boots, keyed by window
+/// label. A window created for a specific document claims its entry when it
+/// mounts, which keeps the hand-off deterministic — unlike an event emitted on
+/// a timer, which is lost whenever the new webview is still loading.
+#[derive(Default)]
+struct WindowOpenFiles(Mutex<HashMap<String, Vec<String>>>);
+
 #[tauri::command]
-fn take_open_files(files: tauri::State<OpenFiles>) -> Result<Vec<String>, String> {
-    let mut pending = files.0.lock().map_err(|e| e.to_string())?;
-    Ok(std::mem::take(&mut *pending))
+fn take_open_files(window: tauri::WebviewWindow) -> Result<Vec<String>, String> {
+    let mut files = window
+        .state::<WindowOpenFiles>()
+        .0
+        .lock()
+        .map_err(|e| e.to_string())?
+        .remove(window.label())
+        .unwrap_or_default();
+    // Launch arguments belong to the window the app started with.
+    if window.label() == "main" {
+        let launch = window.state::<OpenFiles>();
+        let mut pending = launch.0.lock().map_err(|e| e.to_string())?;
+        files.append(&mut pending);
+    }
+    Ok(files)
 }
 
 #[tauri::command]
 async fn new_window(app: tauri::AppHandle, path: Option<String>) -> Result<(), String> {
     let label = format!("document-{}", crate::state::now_ms());
-    let _window = tauri::WebviewWindowBuilder::new(&app, label.clone(), tauri::WebviewUrl::App("index.html".into()))
+    if let Some(path) = path {
+        // Registered before the webview exists: the new window may boot at any
+        // moment after `build` returns and must already find its document.
+        app.state::<WindowOpenFiles>()
+            .0
+            .lock()
+            .map_err(|e| e.to_string())?
+            .insert(label.clone(), vec![path]);
+    }
+    let built = tauri::WebviewWindowBuilder::new(&app, label.clone(), tauri::WebviewUrl::App("index.html".into()))
         .title("Typo")
         .inner_size(1200.0, 800.0)
         .min_inner_size(800.0, 600.0)
-        .build()
-        .map_err(|e| e.to_string())?;
-    if let Some(path) = path {
-        // The new WebView must finish mounting its listener before receiving
-        // the one-shot open request.
-        tauri::async_runtime::spawn(async move {
-            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-            let _ = app.emit_to(&label, "open-files", vec![path]);
-        });
+        .build();
+    if let Err(error) = built {
+        if let Ok(mut pending) = app.state::<WindowOpenFiles>().0.lock() {
+            pending.remove(&label);
+        }
+        return Err(error.to_string());
     }
     Ok(())
 }
@@ -102,6 +131,7 @@ pub fn run() {
     webview::apply_dmabuf_workaround();
 
     let result = tauri::Builder::default()
+        .manage(WindowOpenFiles::default())
         .manage(OpenFiles(Mutex::new(
             std::env::args_os()
                 .skip(1)

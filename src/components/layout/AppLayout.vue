@@ -59,6 +59,9 @@ onMounted(async () => {
     const unlisten = await getCurrentWindow().listen<string[]>('open-files', (event) => { void openPaths(event.payload) })
     if (layoutDisposed) unlisten()
     else unlistenOpenFiles = unlisten
+    // Documents addressed to this window (command line, or moved here from
+    // another window) are claimed as soon as the listener is live.
+    await openPendingFiles()
   }
   await settingsStore.load()
   await filesStore.loadRecent()

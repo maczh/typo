@@ -323,7 +323,7 @@ function runCommand(id: string): void {
   switch (id) {
     // File
     case 'new': void A.newFile(); break
-    case 'newWindow': A.newWindow(); break
+    case 'newWindow': void A.newWindow(); break
     case 'open': void A.openFileDialog(); break
     case 'openFolder': void A.openFolderDialog(); break
     case 'quickOpen': A.quickOpen(); break

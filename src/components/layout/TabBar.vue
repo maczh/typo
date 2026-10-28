@@ -8,11 +8,9 @@ function close(id: string): void {
   void A.closeTab(id)
 }
 
+/** Double-click: hand this document over to a new window and drop the tab. */
 function openInWindow(id: string): void {
-  const tab = editor.tabs.find((item) => item.id === id)
-  if (!tab?.doc.path) return
-  A.newWindow(tab.doc.path)
-  void A.closeTab(id)
+  void A.moveTabToWindow(id)
 }
 </script>
 

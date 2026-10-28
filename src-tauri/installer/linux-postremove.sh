@@ -9,6 +9,9 @@ if [ -f "$file" ]; then
     /^\[/ { section=($0=="[Default Applications]") }
     section && /^text\/(x-)?markdown=/ {
       gsub(/Typo\.desktop;/, "")
+      # postinstall creates this entry when it did not previously exist.
+      # Remove the now-empty synthetic entry so uninstall restores the file.
+      if ($0 == "text/x-markdown=") next
       if ($0 ~ /=$/) next
     }
     { print }

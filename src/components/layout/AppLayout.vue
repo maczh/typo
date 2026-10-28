@@ -38,6 +38,7 @@ useDocumentClose()
 const { sidebarVisible, commandPaletteOpen, recoveryOpen, settingsOpen, sourceMode, findOpen, quickOpenOpen } = ui
 
 let unlistenOpenFiles: UnlistenFn | undefined
+let layoutDisposed = false
 async function openPendingFiles(): Promise<void> {
   const paths = await invoke<string[]>('take_open_files')
   for (const path of paths) {
@@ -46,8 +47,9 @@ async function openPendingFiles(): Promise<void> {
 }
 onMounted(async () => {
   if (isTauri()) {
-    unlistenOpenFiles = await listen('open-files', () => { void openPendingFiles() })
-    await openPendingFiles()
+    const unlisten = await listen('open-files', () => { void openPendingFiles() })
+    if (layoutDisposed) unlisten()
+    else unlistenOpenFiles = unlisten
   }
   await settingsStore.load()
   await filesStore.loadRecent()
@@ -62,6 +64,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  layoutDisposed = true
   unlistenOpenFiles?.()
   autosave.stop()
 })

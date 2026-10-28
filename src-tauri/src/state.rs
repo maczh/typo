@@ -5,11 +5,12 @@ use std::sync::Mutex;
 
 use tauri::{AppHandle, Manager};
 
-use crate::models::{RecentItem, Settings};
+use crate::models::{RecentItem, Settings, WindowState};
 
 const RECENT_FILE: &str = "recent.json";
 const SETTINGS_FILE: &str = "settings.json";
 const BACKUP_INDEX_FILE: &str = "backup_index.json";
+const WINDOW_STATE_FILE: &str = "window_state.json";
 
 /// Application-wide, process-lifecycle state. Held behind `tauri::State` and
 /// persisted to the OS-provided config / cache directories. All file IO uses
@@ -18,6 +19,7 @@ pub struct AppState {
     pub recent: Mutex<Vec<RecentItem>>,
     pub settings: Mutex<Settings>,
     pub backup_index: Mutex<HashMap<String, String>>,
+    pub window_state: Mutex<Option<WindowState>>,
 }
 
 impl AppState {
@@ -31,11 +33,13 @@ impl AppState {
             load_json(&config_dir.join(SETTINGS_FILE)).unwrap_or_else(Settings::default);
         let backup_index: HashMap<String, String> =
             load_json(&config_dir.join(BACKUP_INDEX_FILE)).unwrap_or_default();
+        let window_state: Option<WindowState> = load_json(&config_dir.join(WINDOW_STATE_FILE));
 
         Ok(AppState {
             recent: Mutex::new(recent),
             settings: Mutex::new(settings),
             backup_index: Mutex::new(backup_index),
+            window_state: Mutex::new(window_state),
         })
     }
 
@@ -69,6 +73,20 @@ impl AppState {
             .lock()
             .map_err(|_| "backup index lock poisoned".to_string())?;
         write_json(&dir.join(BACKUP_INDEX_FILE), &*data)
+    }
+
+    pub fn persist_window_state(
+        &self,
+        app: &AppHandle,
+        state: WindowState,
+    ) -> Result<(), String> {
+        let dir = self.config_dir(app)?;
+        let mut stored = self
+            .window_state
+            .lock()
+            .map_err(|_| "window state lock poisoned".to_string())?;
+        *stored = Some(state);
+        write_json(&dir.join(WINDOW_STATE_FILE), &*stored)
     }
 }
 

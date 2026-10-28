@@ -18,17 +18,27 @@ export function useDocumentClose(): void {
     if (!isTauri()) { window.addEventListener('beforeunload', beforeUnload); return }
     const win = (await import('@tauri-apps/api/window')).getCurrentWindow()
     const off = await win.onCloseRequested(async (event) => {
-      // Tauri may deliver a second close request when close() is called from
-      // inside this handler. Let the native close proceed exactly once.
-      if (closing || !editor.doc.dirty) return
+      // A close request can be asynchronous because the discard dialog is
+      // asynchronous. Keep the event cancelled until the decision is made.
+      // Once accepted, destroy the native window instead of calling close()
+      // from inside its own close-request callback (which re-enters this
+      // callback and can leave the event loop waiting indefinitely).
+      if (closing) return
       event.preventDefault()
       if (prompting) return
       prompting = true
       try {
         if (await confirmDiscard()) {
           closing = true
-          try { await win.close() } catch { closing = false }
+          const size = await win.outerSize()
+          const position = await win.outerPosition()
+          const { invoke } = await import('@tauri-apps/api/core')
+          await invoke('save_window_state', {
+            state: { x: position.x, y: position.y, width: size.width, height: size.height },
+          })
+          try { await win.destroy() } catch { closing = false }
         }
+      } catch { closing = false
       } finally { prompting = false }
     })
     if (disposed) off()

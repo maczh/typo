@@ -9,7 +9,7 @@ mod webview;
 use std::sync::Mutex;
 #[cfg(target_os = "macos")]
 use tauri::Emitter;
-use tauri::Manager;
+use tauri::{Manager, PhysicalPosition, PhysicalSize};
 
 #[derive(Default)]
 struct OpenFiles(Mutex<Vec<String>>);
@@ -30,6 +30,26 @@ async fn new_window(app: tauri::AppHandle) -> Result<(), String> {
         .build()
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+fn save_window_state(
+    app: tauri::AppHandle,
+    state: crate::models::WindowState,
+) -> Result<(), String> {
+    if state.width == 0 || state.height == 0 {
+        return Err("window dimensions must be positive".into());
+    }
+    app.state::<AppState>().persist_window_state(&app, state)
+}
+
+/// Exit the native application after the frontend has completed any document
+/// confirmation. `AppHandle::exit` terminates all windows and the event loop;
+/// unlike closing the current window it cannot leave other document windows or
+/// their webviews running.
+#[tauri::command]
+fn exit_app(app: tauri::AppHandle) {
+    app.exit(0);
 }
 
 #[tauri::command]
@@ -88,12 +108,30 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle();
             let app_state = AppState::new(handle).map_err(|e| e.to_string())?;
+            if let Some(window_state) = app_state
+                .window_state
+                .lock()
+                .map_err(|_| "window state lock poisoned".to_string())?
+                .as_ref()
+                .copied()
+            {
+                if let Some(window) = app.get_webview_window("main") {
+                    window
+                        .set_size(PhysicalSize::new(window_state.width, window_state.height))
+                        .map_err(|e| e.to_string())?;
+                    window
+                        .set_position(PhysicalPosition::new(window_state.x, window_state.y))
+                        .map_err(|e| e.to_string())?;
+                }
+            }
             app.manage(app_state);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             take_open_files,
             new_window,
+            save_window_state,
+            exit_app,
             open_external_url,
             // file
             commands::file::open_file,

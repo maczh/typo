@@ -120,3 +120,13 @@ pub struct RecoveryItem {
     pub backup_path: String,
     pub saved_at: u64,
 }
+
+/// Last known desktop window geometry, persisted per application profile.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowState {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}

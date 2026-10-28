@@ -8,6 +8,7 @@ import { useFind } from '@/composables/useFind'
 import { useUI } from '@/composables/useUI'
 import { readClipboardText, writeClipboardText } from '@/composables/useClipboard'
 import { showToast } from '@/utils/toast'
+import { confirmDiscard } from '@/utils/documentGuard'
 import { exportDocument } from '@/utils/exporter'
 import {
   insertTable as insertTablePlugin,
@@ -202,9 +203,28 @@ export function closeWindow(): void {
 
 /** Exit the whole desktop application from File > Exit. */
 export function exitApp(): void {
-  // Route through the same close-request guard so Exit never discards an
-  // unsaved document without confirmation.
-  closeWindow()
+  if (!isTauri()) {
+    window.close()
+    return
+  }
+  // Confirm before asking the native process to exit: app.exit() intentionally
+  // closes every window and therefore cannot be used as the confirmation
+  // boundary itself.
+  void (async () => {
+    if (!await confirmDiscard()) return
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const { getCurrentWindow } = await import('@tauri-apps/api/window')
+      const window = getCurrentWindow()
+      const [size, position] = await Promise.all([window.outerSize(), window.outerPosition()])
+      await invoke('save_window_state', {
+        state: { x: position.x, y: position.y, width: size.width, height: size.height },
+      })
+      await invoke('exit_app')
+    } catch (error) {
+      showToast(`退出失败：${String(error)}`, 'error')
+    }
+  })()
 }
 
 function sourceArea(): HTMLTextAreaElement | null {
